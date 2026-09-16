@@ -1,0 +1,610 @@
+<!DOCTYPE html>
+<html lang="es">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0">
+<meta name="theme-color" content="#07090f">
+<meta name="apple-mobile-web-app-capable" content="yes">
+<meta name="apple-mobile-web-app-status-bar-style" content="black-translucent">
+<title>Hub de Campo — Satélite MANTEC</title>
+<script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2"></script>
+<script src="./sat-sync.js"></script>
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link href="https://fonts.googleapis.com/css2?family=Rajdhani:wght@400;500;600;700&family=Share+Tech+Mono&family=Exo+2:wght@300;400;500;600&display=swap" rel="stylesheet">
+<style>
+:root {
+  --bg:#07090f; --bg2:#0d1220; --bg3:#111827;
+  --surface:#151d2e; --surface2:#1a2438;
+  --border:#1e2d47; --border2:#253550;
+  --accent:#00d4ff; --accent2:#0099bb; --accent3:#00ff9d;
+  --warning:#ffaa00; --danger:#ff3b5c;
+  --text:#e8edf5; --text2:#8899bb; --text3:#4a5a7a;
+  --font-display:'Rajdhani',sans-serif; --font-mono:'Share Tech Mono',monospace; --font-body:'Exo 2',sans-serif;
+}
+* { margin:0; padding:0; box-sizing:border-box; -webkit-tap-highlight-color:transparent; }
+html, body { height:100%; }
+body { background:var(--bg); color:var(--text); font-family:var(--font-body); font-size:14px; min-height:100vh; display:flex; flex-direction:column; }
+::-webkit-scrollbar { width:8px; height:8px; }
+::-webkit-scrollbar-thumb { background:var(--border2); border-radius:4px; }
+::-webkit-scrollbar-track { background:var(--bg2); }
+.hidden { display:none !important; }
+
+.topbar { position:sticky; top:0; z-index:50; }
+header { background:linear-gradient(180deg,var(--bg3),var(--bg2)); border-bottom:1px solid var(--border); padding:14px 18px; display:flex; align-items:center; justify-content:space-between; gap:12px; flex-wrap:wrap; }
+.brand { display:flex; align-items:center; gap:10px; }
+.brand .logo { width:34px; height:34px; border-radius:8px; background:radial-gradient(circle at 30% 30%, var(--accent), var(--accent2)); display:flex; align-items:center; justify-content:center; font-size:18px; box-shadow:0 0 14px rgba(0,212,255,0.4); }
+.brand-text h1 { font-family:var(--font-display); font-size:16px; font-weight:700; letter-spacing:1.5px; color:var(--accent); }
+.brand-text .sub { font-family:var(--font-mono); font-size:10px; color:var(--text3); letter-spacing:1px; }
+.conn { display:flex; align-items:center; gap:7px; font-family:var(--font-mono); font-size:10.5px; color:var(--text2); }
+.dot { width:8px; height:8px; border-radius:50%; background:var(--text3); }
+.dot.on { background:var(--accent3); box-shadow:0 0 8px var(--accent3); }
+.dot.off { background:var(--danger); box-shadow:0 0 8px var(--danger); }
+.pend-pill { font-family:var(--font-mono); font-size:10.5px; color:var(--warning); background:rgba(255,170,0,0.08); border:1px solid rgba(255,170,0,0.3); border-radius:20px; padding:4px 11px; cursor:pointer; white-space:nowrap; }
+.pend-pill.hidden { display:none; }
+
+.tabs { display:flex; gap:0; background:var(--bg2); border-bottom:1px solid var(--border); overflow-x:auto; }
+.tab-btn { font-family:var(--font-display); font-size:13px; font-weight:600; letter-spacing:0.5px; color:var(--text2); background:none; border:none; padding:13px 18px; cursor:pointer; border-bottom:2px solid transparent; white-space:nowrap; transition:.15s; flex:1; }
+.tab-btn:hover { color:var(--text); background:rgba(255,255,255,0.02); }
+.tab-btn.active { color:var(--accent); border-bottom-color:var(--accent); }
+
+main { flex:1; padding:16px; max-width:640px; margin:0 auto; width:100%; padding-bottom:60px; }
+.view { display:none; }
+.view.active { display:block; animation:fadeIn .2s ease; }
+@keyframes fadeIn { from{opacity:0; transform:translateY(4px);} to{opacity:1; transform:translateY(0);} }
+
+.card { background:var(--surface); border:1px solid var(--border); border-radius:10px; padding:16px; margin-bottom:14px; }
+.card-title { font-family:var(--font-display); font-size:13px; font-weight:700; letter-spacing:1.5px; color:var(--accent); text-transform:uppercase; margin-bottom:12px; display:flex; align-items:center; justify-content:space-between; gap:8px; }
+.card-note { font-size:11.5px; color:var(--text3); line-height:1.5; margin-top:2px; }
+.section-label { font-family:var(--font-display); font-size:12px; font-weight:700; letter-spacing:1px; color:var(--text2); text-transform:uppercase; margin:16px 0 10px; padding-top:12px; border-top:1px dashed var(--border); }
+.section-label:first-child { margin-top:0; padding-top:0; border-top:none; }
+
+label.field-label { display:block; font-family:var(--font-mono); font-size:10px; color:var(--text3); letter-spacing:0.5px; text-transform:uppercase; margin-bottom:5px; }
+select, input[type=text], input[type=number], input[type=date], textarea {
+  width:100%; background:var(--bg2); border:1px solid var(--border); border-radius:6px; color:var(--text);
+  padding:12px 11px; font-family:var(--font-body); font-size:16px; outline:none; transition:.15s;
+}
+select:focus, input:focus, textarea:focus { border-color:var(--accent); box-shadow:0 0 0 2px rgba(0,212,255,0.12); }
+textarea { resize:vertical; min-height:60px; }
+.field-row { margin-bottom:12px; }
+.field-grid2 { display:grid; grid-template-columns:1fr 1fr; gap:10px; }
+.field-grid3 { display:grid; grid-template-columns:1fr 1fr 1fr; gap:10px; }
+.field-grid2 .field-row, .field-grid3 .field-row { margin-bottom:0; }
+@media (max-width:420px) { .field-grid3 { grid-template-columns:1fr 1fr; } }
+
+button.btn { font-family:var(--font-display); font-size:13px; font-weight:700; letter-spacing:1px; border-radius:7px; border:1px solid var(--border2); background:var(--bg2); color:var(--text2); padding:11px 16px; cursor:pointer; transition:.15s; }
+button.btn:hover { border-color:var(--accent); color:var(--accent); }
+button.btn.primary { background:linear-gradient(135deg, var(--accent2), var(--accent)); color:#04121a; border:none; }
+button.btn.primary:hover { filter:brightness(1.1); }
+button.btn.big { width:100%; padding:16px; font-size:15px; margin-top:6px; }
+button.btn.small { padding:7px 12px; font-size:11px; }
+
+.pend-item { border:1px solid var(--border); border-radius:8px; padding:12px; margin-bottom:10px; background:var(--bg2); }
+.pend-head { display:flex; justify-content:space-between; align-items:flex-start; gap:10px; }
+.pend-name { font-size:13.5px; font-weight:600; color:var(--text); }
+.pend-meta { font-family:var(--font-mono); font-size:10px; color:var(--text3); margin-top:3px; }
+.pend-del { background:none; border:none; color:var(--text3); font-size:16px; cursor:pointer; line-height:1; padding:2px 4px; }
+.pend-del:hover { color:var(--danger); }
+.empty-state { text-align:center; padding:30px 20px; color:var(--text3); }
+.empty-state .icon { font-size:32px; margin-bottom:8px; opacity:.5; }
+.empty-state .msg { font-family:var(--font-mono); font-size:12px; }
+
+.toast-wrap { position:fixed; bottom:20px; left:50%; transform:translateX(-50%); z-index:200; display:flex; flex-direction:column; gap:8px; align-items:center; width:calc(100% - 40px); max-width:420px; }
+.toast { font-family:var(--font-mono); font-size:12px; padding:10px 18px; border-radius:8px; background:var(--surface2); border:1px solid var(--border2); color:var(--text); box-shadow:0 6px 20px rgba(0,0,0,0.4); animation:toastIn .2s ease; text-align:center; }
+.toast.success { border-color:rgba(0,255,157,0.4); color:var(--accent3); }
+.toast.error { border-color:rgba(255,59,92,0.4); color:var(--danger); }
+.toast.warn { border-color:rgba(255,170,0,0.4); color:var(--warning); }
+@keyframes toastIn { from{opacity:0; transform:translateY(10px);} to{opacity:1; transform:translateY(0);} }
+
+@media (max-width:520px) {
+  header { padding:12px 14px; gap:8px; }
+  main { padding:12px; }
+  .card { padding:14px; }
+}
+</style>
+</head>
+<body>
+
+<div class="topbar">
+<header>
+  <div class="brand">
+    <div class="logo">📡</div>
+    <div class="brand-text">
+      <h1>HUB DE CAMPO</h1>
+      <div class="sub">MANTEC · captura satelital</div>
+    </div>
+  </div>
+  <div style="display:flex; align-items:center; gap:10px;">
+    <button class="pend-pill hidden" id="pendPill" onclick="reintentarEnvios()">⏳ <span id="pendCount">0</span> por enviar</button>
+    <div class="conn"><span class="dot" id="connDot"></span><span id="connLabel">verificando…</span></div>
+  </div>
+</header>
+
+<nav class="tabs" id="tabNav">
+  <button class="tab-btn active" data-tab="motor">⚙️ Motores</button>
+  <button class="tab-btn" data-tab="alineacion">🎯 Alineación</button>
+  <button class="tab-btn" data-tab="tablero">🧯 Tableros</button>
+  <button class="tab-btn" data-tab="refrigeracion">❄️ Refrigeración</button>
+</nav>
+</div>
+
+<main>
+
+  <!-- ═══════════ MOTORES ═══════════ -->
+  <section class="view active" id="view-motor">
+    <div class="card">
+      <div class="card-title">Equipo</div>
+      <div class="field-row">
+        <label class="field-label">TAG del motor</label>
+        <input type="text" id="mo_tag" list="listaEquipos" placeholder="Ej: MOT-BOMBA-01" autocomplete="off">
+      </div>
+      <div class="card-note">Elegí uno existente de la lista o escribí un TAG nuevo — se crea solo al guardar.</div>
+    </div>
+
+    <div class="card">
+      <div class="card-title">Ensayo</div>
+      <div class="field-grid2">
+        <div class="field-row"><label class="field-label">Fecha</label><input type="date" id="mo_fecha"></div>
+        <div class="field-row"><label class="field-label">Hilos</label>
+          <select id="mo_hilos" onchange="toggleMotorHilos()"><option value="3">3 hilos</option><option value="6">6 hilos</option></select>
+        </div>
+      </div>
+
+      <div class="section-label">Aislación</div>
+      <div class="field-grid2">
+        <div class="field-row"><label class="field-label">Tensión de ensayo megóhmetro (V)</label>
+          <select id="mo_vEnsayo"><option value="250">250</option><option value="500" selected>500</option><option value="1000">1000</option></select>
+        </div>
+        <div class="field-row"><label class="field-label">Temp. ambiente (°C)</label><input type="number" step="0.1" id="mo_tempAmb" oninput="previewIP()"></div>
+      </div>
+
+      <div id="mo_hilos3">
+        <div class="field-grid2" style="margin-top:10px;">
+          <div class="field-row"><label class="field-label">R aislación 1 min (MΩ)</label><input type="number" step="0.01" id="mo_r1" oninput="previewIP()"></div>
+          <div class="field-row"><label class="field-label">R aislación 10 min (MΩ)</label><input type="number" step="0.01" id="mo_r10" oninput="previewIP()"></div>
+        </div>
+      </div>
+
+      <div id="mo_hilos6" class="hidden">
+        <div class="card-note" style="margin:10px 0;">Fase — GND, cada una R1/R10 (MΩ)</div>
+        <div class="field-grid3">
+          <div class="field-row"><input type="number" step="0.01" id="mo_r1_u" placeholder="U R1" oninput="previewIP()"></div>
+          <div class="field-row"><input type="number" step="0.01" id="mo_r10_u" placeholder="U R10" oninput="previewIP()"></div>
+          <div class="field-row"></div>
+          <div class="field-row"><input type="number" step="0.01" id="mo_r1_v" placeholder="V R1" oninput="previewIP()"></div>
+          <div class="field-row"><input type="number" step="0.01" id="mo_r10_v" placeholder="V R10" oninput="previewIP()"></div>
+          <div class="field-row"></div>
+          <div class="field-row"><input type="number" step="0.01" id="mo_r1_w" placeholder="W R1" oninput="previewIP()"></div>
+          <div class="field-row"><input type="number" step="0.01" id="mo_r10_w" placeholder="W R10" oninput="previewIP()"></div>
+          <div class="field-row"></div>
+        </div>
+        <div class="card-note" style="margin:10px 0;">Entre fases, R1/R10 (MΩ)</div>
+        <div class="field-grid3">
+          <div class="field-row"><input type="number" step="0.01" id="mo_r1_uv" placeholder="U-V R1"></div>
+          <div class="field-row"><input type="number" step="0.01" id="mo_r10_uv" placeholder="U-V R10"></div>
+          <div class="field-row"></div>
+          <div class="field-row"><input type="number" step="0.01" id="mo_r1_vw" placeholder="V-W R1"></div>
+          <div class="field-row"><input type="number" step="0.01" id="mo_r10_vw" placeholder="V-W R10"></div>
+          <div class="field-row"></div>
+          <div class="field-row"><input type="number" step="0.01" id="mo_r1_wu" placeholder="W-U R1"></div>
+          <div class="field-row"><input type="number" step="0.01" id="mo_r10_wu" placeholder="W-U R10"></div>
+          <div class="field-row"></div>
+        </div>
+      </div>
+
+      <div class="field-row" style="margin-top:10px;"><label class="field-label">IP (referencia, R10/R1)</label><input type="text" id="mo_ipPreview" disabled placeholder="—"></div>
+
+      <div class="section-label">Resistencia de bobinado</div>
+      <div class="field-grid3">
+        <div class="field-row"><label class="field-label">R U-V (Ω)</label><input type="number" step="0.001" id="mo_rUV"></div>
+        <div class="field-row"><label class="field-label">R V-W (Ω)</label><input type="number" step="0.001" id="mo_rVW"></div>
+        <div class="field-row"><label class="field-label">R W-U (Ω)</label><input type="number" step="0.001" id="mo_rWU"></div>
+      </div>
+
+      <div class="section-label">Corriente de línea</div>
+      <div class="field-grid3">
+        <div class="field-row"><label class="field-label">I R (A)</label><input type="number" step="0.1" id="mo_iR"></div>
+        <div class="field-row"><label class="field-label">I S (A)</label><input type="number" step="0.1" id="mo_iS"></div>
+        <div class="field-row"><label class="field-label">I T (A)</label><input type="number" step="0.1" id="mo_iT"></div>
+      </div>
+
+      <div class="field-row" style="margin-top:10px;"><label class="field-label">Observaciones</label><textarea id="mo_obs" placeholder="Ruido, vibración al tacto, olor, estado de bornes…"></textarea></div>
+
+      <button class="btn primary big" onclick="guardarMotor()">☁️ Guardar ensayo</button>
+      <div class="card-note" style="margin-top:8px;">Se sube crudo — el diagnóstico (IP, severidad) lo calcula Motor Pro al sincronizar.</div>
+    </div>
+  </section>
+
+  <!-- ═══════════ ALINEACIÓN ═══════════ -->
+  <section class="view" id="view-alineacion">
+    <div class="card">
+      <div class="card-title">Equipo</div>
+      <div class="field-row">
+        <label class="field-label">TAG del equipo</label>
+        <input type="text" id="al_tag" list="listaEquipos" placeholder="Ej: BOMBA-AGUA-01" autocomplete="off">
+      </div>
+    </div>
+
+    <div class="card">
+      <div class="card-title">Alineación láser (TKSA 41)</div>
+      <div class="field-grid2">
+        <div class="field-row"><label class="field-label">Fecha</label><input type="date" id="al_fecha"></div>
+        <div class="field-row"><label class="field-label">Técnico</label><input type="text" id="al_tecnico" placeholder="Nombre"></div>
+      </div>
+      <div class="field-row">
+        <label class="field-label">Motivo de la intervención</label>
+        <select id="al_motivo">
+          <option value="preventivo">Preventivo / rutina</option>
+          <option value="correctivo">Correctivo</option>
+          <option value="instalacion">Instalación nueva</option>
+          <option value="otro">Otro</option>
+        </select>
+      </div>
+
+      <div class="section-label">As-Found (antes de corregir)</div>
+      <div class="field-grid2">
+        <div class="field-row"><label class="field-label">Offset vertical (mm)</label><input type="number" step="0.01" id="al_afOffV"></div>
+        <div class="field-row"><label class="field-label">Offset horizontal (mm)</label><input type="number" step="0.01" id="al_afOffH"></div>
+        <div class="field-row"><label class="field-label">Ángulo vertical (mm/100mm)</label><input type="number" step="0.01" id="al_afAngV"></div>
+        <div class="field-row"><label class="field-label">Ángulo horizontal (mm/100mm)</label><input type="number" step="0.01" id="al_afAngH"></div>
+      </div>
+
+      <div class="section-label">As-Left (después de corregir)</div>
+      <div class="field-grid2">
+        <div class="field-row"><label class="field-label">Offset vertical (mm)</label><input type="number" step="0.01" id="al_alOffV"></div>
+        <div class="field-row"><label class="field-label">Offset horizontal (mm)</label><input type="number" step="0.01" id="al_alOffH"></div>
+        <div class="field-row"><label class="field-label">Ángulo vertical (mm/100mm)</label><input type="number" step="0.01" id="al_alAngV"></div>
+        <div class="field-row"><label class="field-label">Ángulo horizontal (mm/100mm)</label><input type="number" step="0.01" id="al_alAngH"></div>
+      </div>
+
+      <div class="field-row" style="margin-top:4px;">
+        <label class="field-label">Resultado del semáforo TKSA 41</label>
+        <select id="al_semaforo">
+          <option value="verde">🟢 Verde</option>
+          <option value="amarillo">🟡 Amarillo</option>
+          <option value="rojo">🔴 Rojo</option>
+        </select>
+      </div>
+
+      <div class="section-label">Pata blanda</div>
+      <div class="field-grid2">
+        <div class="field-row"><label class="field-label">¿Se detectó?</label>
+          <select id="al_pataDetectada"><option value="no">No</option><option value="si">Sí</option></select>
+        </div>
+        <div class="field-row"><label class="field-label">Valor / pata afectada</label><input type="text" id="al_pataDetalle" placeholder="ej: 0.12 mm, delantera derecha"></div>
+      </div>
+
+      <div class="field-row" style="margin-top:10px;"><label class="field-label">Observaciones</label><textarea id="al_obs" placeholder="Tensión de tuberías, estado de la base, desgaste del acople…"></textarea></div>
+      <div class="field-row"><label class="field-label">Próxima revisión sugerida</label><input type="date" id="al_proxima"></div>
+
+      <button class="btn primary big" onclick="guardarAlineacion()">☁️ Guardar alineación</button>
+    </div>
+  </section>
+
+  <!-- ═══════════ TABLEROS ═══════════ -->
+  <section class="view" id="view-tablero">
+    <div class="card">
+      <div class="card-title">Equipo</div>
+      <div class="field-row">
+        <label class="field-label">TAG del tablero / circuito</label>
+        <input type="text" id="ta_tag" list="listaEquipos" placeholder="Ej: TAB-GENERAL-PLANTA" autocomplete="off">
+      </div>
+    </div>
+
+    <div class="card">
+      <div class="card-title">Medición</div>
+      <div class="field-grid2">
+        <div class="field-row"><label class="field-label">Fecha</label><input type="date" id="ta_fecha"></div>
+        <div class="field-row"><label class="field-label">Fase con temp. máxima</label>
+          <select id="ta_faseMax"><option value="">—</option><option value="R">R</option><option value="S">S</option><option value="T">T</option><option value="N">N</option></select>
+        </div>
+      </div>
+      <div class="field-grid2">
+        <div class="field-row"><label class="field-label">Temp. ambiente (°C)</label><input type="number" step="0.1" id="ta_tempAmb"></div>
+        <div class="field-row"><label class="field-label">Temp. máxima medida (°C)</label><input type="number" step="0.1" id="ta_tempMax"></div>
+      </div>
+
+      <div class="section-label">Corrientes</div>
+      <div class="field-grid3">
+        <div class="field-row"><label class="field-label">I R (A)</label><input type="number" step="0.1" id="ta_iR"></div>
+        <div class="field-row"><label class="field-label">I S (A)</label><input type="number" step="0.1" id="ta_iS"></div>
+        <div class="field-row"><label class="field-label">I T (A)</label><input type="number" step="0.1" id="ta_iT"></div>
+      </div>
+
+      <div class="section-label">Tensiones</div>
+      <div class="field-grid3">
+        <div class="field-row"><label class="field-label">V R (V)</label><input type="number" step="0.1" id="ta_vR"></div>
+        <div class="field-row"><label class="field-label">V S (V)</label><input type="number" step="0.1" id="ta_vS"></div>
+        <div class="field-row"><label class="field-label">V T (V)</label><input type="number" step="0.1" id="ta_vT"></div>
+      </div>
+
+      <div class="section-label">Calidad de energía / aislación</div>
+      <div class="field-grid3">
+        <div class="field-row"><label class="field-label">Factor de potencia</label><input type="number" step="0.01" min="0" max="1" id="ta_fp"></div>
+        <div class="field-row"><label class="field-label">THD tensión (%)</label><input type="number" step="0.1" id="ta_thdV"></div>
+        <div class="field-row"><label class="field-label">R aislación (MΩ)</label><input type="number" step="0.1" id="ta_rAisl"></div>
+      </div>
+
+      <div class="field-row" style="margin-top:10px;"><label class="field-label">Observaciones</label><textarea id="ta_obs" placeholder="Inspección visual, estado de componentes, termografía puntual…"></textarea></div>
+
+      <button class="btn primary big" onclick="guardarTablero()">☁️ Guardar medición</button>
+    </div>
+  </section>
+
+  <!-- ═══════════ REFRIGERACIÓN ═══════════ -->
+  <section class="view" id="view-refrigeracion">
+    <div class="card">
+      <div class="card-title">Equipo</div>
+      <div class="field-row">
+        <label class="field-label">TAG del equipo</label>
+        <input type="text" id="rf_tag" list="listaEquipos" placeholder="Ej: AC-SALA-CONTROL" autocomplete="off">
+      </div>
+      <div class="card-note">Elegí uno existente de la lista o escribí un TAG nuevo — se crea solo al guardar (tipo por defecto: AC Split, editable después en Refrigeración Pro).</div>
+    </div>
+
+    <div class="card">
+      <div class="card-title">Lectura</div>
+      <div class="field-row">
+        <label class="field-label">Fecha</label><input type="date" id="rf_fecha">
+      </div>
+
+      <div class="section-label">Temperaturas</div>
+      <div class="field-grid3">
+        <div class="field-row"><label class="field-label">Entrada de aire (°C)</label><input type="number" step="0.1" id="rf_tempEntrada"></div>
+        <div class="field-row"><label class="field-label">Salida de aire (°C)</label><input type="number" step="0.1" id="rf_tempSalida"></div>
+        <div class="field-row"><label class="field-label">Ambiente climatizado (°C)</label><input type="number" step="0.1" id="rf_tempAmb"></div>
+      </div>
+
+      <div class="section-label">Presiones de refrigerante</div>
+      <div class="field-grid2">
+        <div class="field-row"><label class="field-label">Presión alta (bar)</label><input type="number" step="0.1" id="rf_presAlta"></div>
+        <div class="field-row"><label class="field-label">Presión baja (bar)</label><input type="number" step="0.1" id="rf_presBaja"></div>
+      </div>
+
+      <div class="section-label">Corrientes</div>
+      <div class="field-grid3">
+        <div class="field-row"><label class="field-label">I R (A)</label><input type="number" step="0.1" id="rf_iR"></div>
+        <div class="field-row"><label class="field-label">I S (A)</label><input type="number" step="0.1" id="rf_iS"></div>
+        <div class="field-row"><label class="field-label">I T (A)</label><input type="number" step="0.1" id="rf_iT"></div>
+      </div>
+
+      <div class="section-label">Tensiones</div>
+      <div class="field-grid3">
+        <div class="field-row"><label class="field-label">V R (V)</label><input type="number" step="0.1" id="rf_vR"></div>
+        <div class="field-row"><label class="field-label">V S (V)</label><input type="number" step="0.1" id="rf_vS"></div>
+        <div class="field-row"><label class="field-label">V T (V)</label><input type="number" step="0.1" id="rf_vT"></div>
+      </div>
+
+      <div class="section-label">Aire y filtro</div>
+      <div class="field-grid2">
+        <div class="field-row"><label class="field-label">Velocidad de aire — anemómetro (m/s)</label><input type="number" step="0.1" id="rf_velAire"></div>
+        <div class="field-row"><label class="field-label">Estado del filtro</label>
+          <select id="rf_filtro"><option value="">—</option><option value="Bueno">Bueno</option><option value="Sucio">Sucio</option><option value="Muy sucio">Muy sucio</option></select>
+        </div>
+      </div>
+
+      <div class="field-row" style="margin-top:10px;"><label class="field-label">Observaciones</label><textarea id="rf_obs" placeholder="Ruido, hielo en línea de succión, fugas visibles, estado de aletas del condensador…"></textarea></div>
+
+      <button class="btn primary big" onclick="guardarRefrigeracion()">☁️ Guardar lectura</button>
+      <div class="card-note" style="margin-top:8px;">Se sube cruda — el diagnóstico (ΔT, desbalances, severidad) lo calcula Refrigeración Pro al sincronizar.</div>
+    </div>
+  </section>
+
+  <!-- ═══════════ PENDIENTES (compartido) ═══════════ -->
+  <section class="card hidden" id="pendCard">
+    <div class="card-title">Pendientes de envío <button class="btn small" onclick="reintentarEnvios()">Reintentar</button></div>
+    <div id="pendLista"></div>
+  </section>
+
+</main>
+
+<datalist id="listaEquipos"></datalist>
+<div class="toast-wrap" id="toastWrap"></div>
+
+<script>
+// ═══════════ estado compartido ═══════════
+let equiposCache = []; // filas de la tabla `equipos`
+const PEND_KEY = 'hub_campo_pendientes';
+let pendientes = JSON.parse(localStorage.getItem(PEND_KEY) || '[]');
+
+function toast(msg, type){
+  const wrap = document.getElementById('toastWrap');
+  const el = document.createElement('div');
+  el.className = 'toast ' + (type||'');
+  el.textContent = msg;
+  wrap.appendChild(el);
+  setTimeout(()=>el.remove(), 3200);
+}
+function hoy(){ return new Date().toISOString().slice(0,10); }
+function numOrUndef(id){ const v = parseFloat(document.getElementById(id).value); return isNaN(v) ? undefined : v; }
+function txt(id){ return document.getElementById(id).value.trim(); }
+
+// ═══════════ tabs ═══════════
+document.getElementById('tabNav').addEventListener('click', (e)=>{
+  const btn = e.target.closest('.tab-btn');
+  if(!btn) return;
+  document.querySelectorAll('.tab-btn').forEach(b=>b.classList.toggle('active', b===btn));
+  document.querySelectorAll('.view').forEach(v=>v.classList.remove('active'));
+  document.getElementById('view-'+btn.dataset.tab).classList.add('active');
+});
+
+// ═══════════ IP preview (motores) — solo aritmética, no diagnóstico ═══════════
+function toggleMotorHilos(){
+  const seis = document.getElementById('mo_hilos').value === '6';
+  document.getElementById('mo_hilos3').classList.toggle('hidden', seis);
+  document.getElementById('mo_hilos6').classList.toggle('hidden', !seis);
+  previewIP();
+}
+function previewIP(){
+  const seis = document.getElementById('mo_hilos').value === '6';
+  let r1, r10;
+  if(seis){
+    const cands = [
+      [numOrUndef('mo_r1_u'), numOrUndef('mo_r10_u')],
+      [numOrUndef('mo_r1_v'), numOrUndef('mo_r10_v')],
+      [numOrUndef('mo_r1_w'), numOrUndef('mo_r10_w')]
+    ].filter(c=>c[0]!==undefined && c[0]>0);
+    if(cands.length){ cands.sort((a,b)=>a[0]-b[0]); [r1,r10] = cands[0]; }
+  } else {
+    r1 = numOrUndef('mo_r1'); r10 = numOrUndef('mo_r10');
+  }
+  const ip = (r1!==undefined && r10!==undefined && r1>0) ? (r10/r1) : undefined;
+  document.getElementById('mo_ipPreview').value = ip!==undefined ? ip.toFixed(2) : '—';
+}
+
+// ═══════════ envío (con cola local si falla) ═══════════
+async function enviarCaptura(modulo, equipo_tag, datos, nombreParaToast){
+  if(!equipo_tag){ toast('Falta el TAG del equipo.', 'error'); return false; }
+  const item = { modulo, equipo_tag, datos, ts: Date.now() };
+  try{
+    if(typeof SatSync === 'undefined' || !SatSync.init()) throw new Error('sin conexión configurada');
+    await SatSync.guardarCaptura(item);
+    toast(`☁️ ${nombreParaToast} enviado.`, 'success');
+    return true;
+  }catch(err){
+    pendientes.push(item);
+    localStorage.setItem(PEND_KEY, JSON.stringify(pendientes));
+    renderPendientes();
+    toast(`⚠️ Sin conexión — ${nombreParaToast} quedó en pendientes (${pendientes.length}).`, 'warn');
+    return true; // igual se considera "guardado" localmente, no se pierde
+  }
+}
+
+function renderPendientes(){
+  const pill = document.getElementById('pendPill');
+  const card = document.getElementById('pendCard');
+  const box = document.getElementById('pendLista');
+  document.getElementById('pendCount').textContent = pendientes.length;
+  pill.classList.toggle('hidden', pendientes.length===0);
+  card.classList.toggle('hidden', pendientes.length===0);
+  box.innerHTML = pendientes.map((p,i)=>`
+    <div class="pend-item">
+      <div class="pend-head">
+        <div>
+          <div class="pend-name">${p.equipo_tag} · ${nombreModulo(p.modulo)}</div>
+          <div class="pend-meta">${new Date(p.ts).toLocaleString()}</div>
+        </div>
+        <button class="pend-del" onclick="eliminarPendiente(${i})" title="Descartar">✕</button>
+      </div>
+    </div>`).join('');
+}
+function nombreModulo(m){ return {motor_pro:'Motor', alineacion:'Alineación', tablero_pro:'Tablero', refrigeracion:'Refrigeración'}[m] || m; }
+function eliminarPendiente(i){
+  if(!confirm('¿Descartar esta captura pendiente? No se va a poder recuperar.')) return;
+  pendientes.splice(i,1);
+  localStorage.setItem(PEND_KEY, JSON.stringify(pendientes));
+  renderPendientes();
+}
+async function reintentarEnvios(){
+  if(!pendientes.length) return;
+  if(typeof SatSync === 'undefined' || !SatSync.init()){ toast('Seguís sin conexión.', 'error'); return; }
+  let ok=0, fail=0;
+  const restantes = [];
+  for(const p of pendientes){
+    try{ await SatSync.guardarCaptura(p); ok++; }
+    catch(e){ fail++; restantes.push(p); }
+  }
+  pendientes = restantes;
+  localStorage.setItem(PEND_KEY, JSON.stringify(pendientes));
+  renderPendientes();
+  toast(fail ? `Enviados ${ok}, ${fail} siguen fallando.` : `☁️ ${ok} captura(s) enviada(s).`, fail?'warn':'success');
+}
+
+// ═══════════ guardar por módulo ═══════════
+function guardarMotor(){
+  const tag = txt('mo_tag');
+  const seis = document.getElementById('mo_hilos').value === '6';
+  const datos = {
+    fecha: document.getElementById('mo_fecha').value || hoy(),
+    hilos: document.getElementById('mo_hilos').value,
+    vEnsayo: numOrUndef('mo_vEnsayo'), tempAmb: numOrUndef('mo_tempAmb'),
+    r1: seis?undefined:numOrUndef('mo_r1'), r10: seis?undefined:numOrUndef('mo_r10'),
+    r1u:numOrUndef('mo_r1_u'), r10u:numOrUndef('mo_r10_u'),
+    r1v:numOrUndef('mo_r1_v'), r10v:numOrUndef('mo_r10_v'),
+    r1w:numOrUndef('mo_r1_w'), r10w:numOrUndef('mo_r10_w'),
+    r1uv:numOrUndef('mo_r1_uv'), r10uv:numOrUndef('mo_r10_uv'),
+    r1vw:numOrUndef('mo_r1_vw'), r10vw:numOrUndef('mo_r10_vw'),
+    r1wu:numOrUndef('mo_r1_wu'), r10wu:numOrUndef('mo_r10_wu'),
+    rUV:numOrUndef('mo_rUV'), rVW:numOrUndef('mo_rVW'), rWU:numOrUndef('mo_rWU'),
+    iR:numOrUndef('mo_iR'), iS:numOrUndef('mo_iS'), iT:numOrUndef('mo_iT'),
+    obs: txt('mo_obs')
+  };
+  enviarCaptura('motor_pro', tag, datos, `Ensayo de ${tag}`).then(ok=>{ if(ok) limpiarFormulario('motor'); });
+}
+
+function guardarAlineacion(){
+  const tag = txt('al_tag');
+  const datos = {
+    fecha: document.getElementById('al_fecha').value || hoy(),
+    tecnico: txt('al_tecnico'),
+    motivo: document.getElementById('al_motivo').value,
+    asFound: { offV: txt('al_afOffV'), offH: txt('al_afOffH'), angV: txt('al_afAngV'), angH: txt('al_afAngH') },
+    asLeft:  { offV: txt('al_alOffV'), offH: txt('al_alOffH'), angV: txt('al_alAngV'), angH: txt('al_alAngH') },
+    semaforo: document.getElementById('al_semaforo').value,
+    pataBlanda: { detectada: document.getElementById('al_pataDetectada').value, detalle: txt('al_pataDetalle') },
+    observaciones: txt('al_obs'),
+    proximaRevision: document.getElementById('al_proxima').value
+  };
+  enviarCaptura('alineacion', tag, datos, `Alineación de ${tag}`).then(ok=>{ if(ok) limpiarFormulario('alineacion'); });
+}
+
+function guardarTablero(){
+  const tag = txt('ta_tag');
+  const datos = {
+    fecha: document.getElementById('ta_fecha').value || hoy(),
+    faseMax: document.getElementById('ta_faseMax').value,
+    tempAmb: numOrUndef('ta_tempAmb'), tempMax: numOrUndef('ta_tempMax'),
+    iR:numOrUndef('ta_iR'), iS:numOrUndef('ta_iS'), iT:numOrUndef('ta_iT'),
+    vR:numOrUndef('ta_vR'), vS:numOrUndef('ta_vS'), vT:numOrUndef('ta_vT'),
+    fp:numOrUndef('ta_fp'), thdV:numOrUndef('ta_thdV'), rAisl:numOrUndef('ta_rAisl'),
+    obs: txt('ta_obs')
+  };
+  enviarCaptura('tablero_pro', tag, datos, `Medición de ${tag}`).then(ok=>{ if(ok) limpiarFormulario('tablero'); });
+}
+
+function guardarRefrigeracion(){
+  const tag = txt('rf_tag');
+  const datos = {
+    fecha: document.getElementById('rf_fecha').value || hoy(),
+    tempEntrada: numOrUndef('rf_tempEntrada'), tempSalida: numOrUndef('rf_tempSalida'), tempAmb: numOrUndef('rf_tempAmb'),
+    presAlta: numOrUndef('rf_presAlta'), presBaja: numOrUndef('rf_presBaja'),
+    iR: numOrUndef('rf_iR'), iS: numOrUndef('rf_iS'), iT: numOrUndef('rf_iT'),
+    vR: numOrUndef('rf_vR'), vS: numOrUndef('rf_vS'), vT: numOrUndef('rf_vT'),
+    velAire: numOrUndef('rf_velAire'), filtro: document.getElementById('rf_filtro').value,
+    obs: txt('rf_obs')
+  };
+  enviarCaptura('refrigeracion', tag, datos, `Lectura de ${tag}`).then(ok=>{ if(ok) limpiarFormulario('refrigeracion'); });
+}
+
+function limpiarFormulario(cual){
+  const prefijo = {motor:'mo_', alineacion:'al_', tablero:'ta_', refrigeracion:'rf_'}[cual];
+  document.querySelectorAll(`#view-${cual} input[type=text], #view-${cual} input[type=number], #view-${cual} textarea`).forEach(el=>el.value='');
+  document.querySelectorAll(`#view-${cual} input[type=date]`).forEach(el=>el.value=hoy());
+  if(cual==='motor'){ document.getElementById('mo_hilos').value='3'; toggleMotorHilos(); document.getElementById('mo_vEnsayo').value='500'; }
+  if(cual==='alineacion'){ document.getElementById('al_semaforo').value='verde'; document.getElementById('al_pataDetectada').value='no'; }
+  if(cual==='refrigeracion'){ document.getElementById('rf_filtro').value=''; }
+}
+
+// ═══════════ init ═══════════
+function actualizarEstadoConexion(){
+  const on = typeof SatSync !== 'undefined' && SatSync.estaConfigurado();
+  document.getElementById('connDot').className = 'dot ' + (on?'on':'off');
+  document.getElementById('connLabel').textContent = on ? 'conectado' : 'sin conectar';
+}
+async function cargarEquipos(){
+  try{
+    equiposCache = await SatSync.listarEquipos();
+    document.getElementById('listaEquipos').innerHTML = equiposCache.map(e=>`<option value="${e.tag}">${e.nombre||''}</option>`).join('');
+  }catch(err){
+    console.warn('[HubCampo] no se pudo leer equipos', err);
+  }
+}
+
+['mo_fecha','al_fecha','ta_fecha','rf_fecha'].forEach(id=>document.getElementById(id).value = hoy());
+renderPendientes();
+actualizarEstadoConexion();
+if(SatSync.init()){ cargarEquipos(); }
+if(navigator.onLine) reintentarEnvios();
+window.addEventListener('online', reintentarEnvios);
+</script>
+</body>
+</html>
