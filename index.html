@@ -149,62 +149,88 @@ button.btn.small { padding:7px 12px; font-size:11px; }
         </div>
       </div>
 
+      <div class="field-grid2">
+        <div class="field-row"><label class="field-label">Sistema</label>
+          <select id="mo_sistema" onchange="toggleMotorSistema()"><option value="Trifásico">Trifásico</option><option value="Monofásico">Monofásico</option></select>
+        </div>
+        <div class="field-row"><label class="field-label">Tensión nominal (V)</label><input type="number" inputmode="decimal" id="mo_vNom" placeholder="Ej: 380" oninput="suggestVEnsayoHub()"></div>
+      </div>
+      <div class="field-grid3" style="margin-top:10px;">
+        <div class="field-row"><label class="field-label">Potencia (kW)</label><input type="number" step="0.01" inputmode="decimal" id="mo_kw"></div>
+        <div class="field-row"><label class="field-label">Corriente nominal (A)</label><input type="number" step="0.1" inputmode="decimal" id="mo_iNom"></div>
+        <div class="field-row"><label class="field-label">RPM</label><input type="number" inputmode="decimal" id="mo_rpm"></div>
+      </div>
+
       <div class="section-label">Aislación</div>
       <div class="field-grid2">
         <div class="field-row"><label class="field-label">Tensión de ensayo megóhmetro (V)</label>
-          <select id="mo_vEnsayo"><option value="250">250</option><option value="500" selected>500</option><option value="1000">1000</option></select>
+          <select id="mo_vEnsayo" onchange="onVEnsayoManualChangeHub()"><option value="250">250</option><option value="500" selected>500</option><option value="1000">1000</option><option value="2500">2500</option><option value="5000">5000</option></select>
+          <div class="card-note" id="mo_vEnsayoHint"></div>
         </div>
-        <div class="field-row"><label class="field-label">Temp. ambiente (°C)</label><input type="number" step="0.1" id="mo_tempAmb" oninput="previewIP()"></div>
+        <div class="field-row"><label class="field-label">Temp. ambiente (°C)</label><input type="number" step="0.1" inputmode="decimal" id="mo_tempAmb" oninput="previewIP()"></div>
+      </div>
+      <div class="field-row" style="margin-top:8px;">
+        <label class="field-label">Temp. de bobinado (°C, opcional)</label>
+        <input type="number" step="0.1" inputmode="decimal" id="mo_tempBob">
+        <div class="card-note">Si el motor corrió poco antes del ensayo, medila con termómetro de contacto/IR — es más precisa que la ambiente para corregir R1 a 40°C. Si no la tenés, dejá vacío y se usa la ambiente.</div>
       </div>
 
       <div id="mo_hilos3">
         <div class="field-grid2" style="margin-top:10px;">
-          <div class="field-row"><label class="field-label">R aislación 1 min (MΩ)</label><input type="number" step="0.01" id="mo_r1" oninput="previewIP()"></div>
-          <div class="field-row"><label class="field-label">R aislación 10 min (MΩ)</label><input type="number" step="0.01" id="mo_r10" oninput="previewIP()"></div>
+          <div class="field-row"><label class="field-label">R aislación 1 min (MΩ)</label><input type="number" step="0.01" inputmode="decimal" id="mo_r1" oninput="previewIP()"></div>
+          <div class="field-row"><label class="field-label">R aislación 10 min (MΩ)</label><input type="number" step="0.01" inputmode="decimal" id="mo_r10" oninput="previewIP()"></div>
+        </div>
+        <div class="field-row" style="margin-top:8px;">
+          <label class="field-label">R a 30 seg (MΩ, opcional — para DAR)</label>
+          <input type="number" step="0.01" inputmode="decimal" id="mo_r30">
+          <div class="card-note">DAR = R1min/R30seg. Más confiable que el IP en motores recién limpiados/instalados. Si tu megóhmetro la muestra, cargala; si no, dejá vacío.</div>
         </div>
       </div>
 
       <div id="mo_hilos6" class="hidden">
         <div class="card-note" style="margin:10px 0;">Fase — GND, cada una R1/R10 (MΩ)</div>
-        <div class="field-grid3">
-          <div class="field-row"><input type="number" step="0.01" id="mo_r1_u" placeholder="U R1" oninput="previewIP()"></div>
-          <div class="field-row"><input type="number" step="0.01" id="mo_r10_u" placeholder="U R10" oninput="previewIP()"></div>
-          <div class="field-row"></div>
-          <div class="field-row"><input type="number" step="0.01" id="mo_r1_v" placeholder="V R1" oninput="previewIP()"></div>
-          <div class="field-row"><input type="number" step="0.01" id="mo_r10_v" placeholder="V R10" oninput="previewIP()"></div>
-          <div class="field-row"></div>
-          <div class="field-row"><input type="number" step="0.01" id="mo_r1_w" placeholder="W R1" oninput="previewIP()"></div>
-          <div class="field-row"><input type="number" step="0.01" id="mo_r10_w" placeholder="W R10" oninput="previewIP()"></div>
-          <div class="field-row"></div>
+        <div class="field-grid2">
+          <div class="field-row"><input type="number" step="0.01" inputmode="decimal" id="mo_r1_u" placeholder="U R1" oninput="previewIP()"></div>
+          <div class="field-row"><input type="number" step="0.01" inputmode="decimal" id="mo_r10_u" placeholder="U R10" oninput="previewIP()"></div>
+          <div class="field-row"><input type="number" step="0.01" inputmode="decimal" id="mo_r1_v" placeholder="V R1" oninput="previewIP()"></div>
+          <div class="field-row"><input type="number" step="0.01" inputmode="decimal" id="mo_r10_v" placeholder="V R10" oninput="previewIP()"></div>
+          <div class="field-row"><input type="number" step="0.01" inputmode="decimal" id="mo_r1_w" placeholder="W R1" oninput="previewIP()"></div>
+          <div class="field-row"><input type="number" step="0.01" inputmode="decimal" id="mo_r10_w" placeholder="W R10" oninput="previewIP()"></div>
+        </div>
+        <div class="field-row" style="margin-top:6px;"><label class="field-label">Devanado gobernante (referencia, menor R1)</label><input type="text" id="mo_governingPreview" disabled placeholder="—"></div>
+        <div class="field-row" style="margin-top:8px;">
+          <label class="field-label">R a 30 seg del devanado gobernante (MΩ, opcional — para DAR)</label>
+          <input type="number" step="0.01" inputmode="decimal" id="mo_r30_gov">
+          <div class="card-note">Re-medí a 30 seg solo el devanado que salió arriba como gobernante (el de menor R1) — es el único que Motor Pro usa para el DAR.</div>
         </div>
         <div class="card-note" style="margin:10px 0;">Entre fases, R1/R10 (MΩ)</div>
-        <div class="field-grid3">
-          <div class="field-row"><input type="number" step="0.01" id="mo_r1_uv" placeholder="U-V R1"></div>
-          <div class="field-row"><input type="number" step="0.01" id="mo_r10_uv" placeholder="U-V R10"></div>
-          <div class="field-row"></div>
-          <div class="field-row"><input type="number" step="0.01" id="mo_r1_vw" placeholder="V-W R1"></div>
-          <div class="field-row"><input type="number" step="0.01" id="mo_r10_vw" placeholder="V-W R10"></div>
-          <div class="field-row"></div>
-          <div class="field-row"><input type="number" step="0.01" id="mo_r1_wu" placeholder="W-U R1"></div>
-          <div class="field-row"><input type="number" step="0.01" id="mo_r10_wu" placeholder="W-U R10"></div>
-          <div class="field-row"></div>
+        <div class="field-grid2">
+          <div class="field-row"><input type="number" step="0.01" inputmode="decimal" id="mo_r1_uv" placeholder="U-V R1"></div>
+          <div class="field-row"><input type="number" step="0.01" inputmode="decimal" id="mo_r10_uv" placeholder="U-V R10"></div>
+          <div class="field-row"><input type="number" step="0.01" inputmode="decimal" id="mo_r1_vw" placeholder="V-W R1"></div>
+          <div class="field-row"><input type="number" step="0.01" inputmode="decimal" id="mo_r10_vw" placeholder="V-W R10"></div>
+          <div class="field-row"><input type="number" step="0.01" inputmode="decimal" id="mo_r1_wu" placeholder="W-U R1"></div>
+          <div class="field-row"><input type="number" step="0.01" inputmode="decimal" id="mo_r10_wu" placeholder="W-U R10"></div>
         </div>
       </div>
 
-      <div class="field-row" style="margin-top:10px;"><label class="field-label">IP (referencia, R10/R1)</label><input type="text" id="mo_ipPreview" disabled placeholder="—"></div>
+      <div class="field-grid2" style="margin-top:10px;">
+        <div class="field-row"><label class="field-label">IP (referencia, R10/R1)</label><input type="text" id="mo_ipPreview" disabled placeholder="—"></div>
+        <div class="field-row"><label class="field-label">DAR (referencia, R1/R30)</label><input type="text" id="mo_darPreview" disabled placeholder="—"></div>
+      </div>
 
       <div class="section-label">Resistencia de bobinado</div>
       <div class="field-grid3">
-        <div class="field-row"><label class="field-label">R U-V (Ω)</label><input type="number" step="0.001" id="mo_rUV"></div>
-        <div class="field-row"><label class="field-label">R V-W (Ω)</label><input type="number" step="0.001" id="mo_rVW"></div>
-        <div class="field-row"><label class="field-label">R W-U (Ω)</label><input type="number" step="0.001" id="mo_rWU"></div>
+        <div class="field-row"><label class="field-label">R U-V (Ω)</label><input type="number" step="0.001" inputmode="decimal" id="mo_rUV"></div>
+        <div class="field-row" id="mo_rVW_row"><label class="field-label">R V-W (Ω)</label><input type="number" step="0.001" inputmode="decimal" id="mo_rVW"></div>
+        <div class="field-row" id="mo_rWU_row"><label class="field-label">R W-U (Ω)</label><input type="number" step="0.001" inputmode="decimal" id="mo_rWU"></div>
       </div>
 
       <div class="section-label">Corriente de línea</div>
       <div class="field-grid3">
-        <div class="field-row"><label class="field-label">I R (A)</label><input type="number" step="0.1" id="mo_iR"></div>
-        <div class="field-row"><label class="field-label">I S (A)</label><input type="number" step="0.1" id="mo_iS"></div>
-        <div class="field-row"><label class="field-label">I T (A)</label><input type="number" step="0.1" id="mo_iT"></div>
+        <div class="field-row"><label class="field-label">I R (A)</label><input type="number" step="0.1" inputmode="decimal" id="mo_iR"></div>
+        <div class="field-row" id="mo_iS_row"><label class="field-label">I S (A)</label><input type="number" step="0.1" inputmode="decimal" id="mo_iS"></div>
+        <div class="field-row" id="mo_iT_row"><label class="field-label">I T (A)</label><input type="number" step="0.1" inputmode="decimal" id="mo_iT"></div>
       </div>
 
       <div class="field-row" style="margin-top:10px;"><label class="field-label">Observaciones</label><textarea id="mo_obs" placeholder="Ruido, vibración al tacto, olor, estado de bornes…"></textarea></div>
@@ -405,6 +431,7 @@ button.btn.small { padding:7px 12px; font-size:11px; }
 let equiposCache = []; // filas de la tabla `equipos`
 const PEND_KEY = 'hub_campo_pendientes';
 let pendientes = JSON.parse(localStorage.getItem(PEND_KEY) || '[]');
+let vEnsayoHubTouched = false; // true si el técnico ya ajustó la tensión de ensayo a mano en esta carga
 
 function toast(msg, type){
   const wrap = document.getElementById('toastWrap');
@@ -417,6 +444,25 @@ function toast(msg, type){
 function hoy(){ return new Date().toISOString().slice(0,10); }
 function numOrUndef(id){ const v = parseFloat(document.getElementById(id).value); return isNaN(v) ? undefined : v; }
 function txt(id){ return document.getElementById(id).value.trim(); }
+
+// ═══════════ validación básica de rangos ═══════════
+// No reemplaza el diagnóstico de cada app Pro — solo atrapa errores de
+// tipeo obvios (valores negativos en magnitudes que no pueden serlo,
+// temperaturas o corrientes fuera de todo rango físico razonable) antes
+// de mandar el dato crudo a la nube.
+function validarRangos(reglas){
+  for(const [id, min, max, etiqueta, unidad] of reglas){
+    const v = numOrUndef(id);
+    if(v === undefined) continue; // los campos vacíos son válidos (opcionales)
+    if(v < min || v > max){
+      const u = unidad ? ` ${unidad}` : '';
+      toast(`⚠️ ${etiqueta}: ${v}${u} está fuera de rango (${min}–${max}${u}).`, 'error');
+      document.getElementById(id).focus();
+      return false;
+    }
+  }
+  return true;
+}
 
 // ═══════════ tabs ═══════════
 document.getElementById('tabNav').addEventListener('click', (e)=>{
@@ -434,38 +480,96 @@ function toggleMotorHilos(){
   document.getElementById('mo_hilos6').classList.toggle('hidden', !seis);
   previewIP();
 }
+function toggleMotorSistema(){
+  const mono = document.getElementById('mo_sistema').value === 'Monofásico';
+  // en monofásico no hay V-W ni W-U (bobinado ni línea) — mismo criterio que 6 hilos
+  ['mo_rVW_row','mo_rWU_row','mo_iS_row','mo_iT_row'].forEach(id=>{
+    document.getElementById(id).classList.toggle('hidden', mono);
+  });
+}
+
+// ═══════════ tensión de ensayo sugerida (IEEE 43) — mismo criterio que Motor Pro ═══════════
+// Protege el equipo durante el ensayo: acá es donde se decide y aplica la tensión,
+// no en Motor Pro (que solo analiza el dato ya medido).
+function suggestedVEnsayo(vNom){ return Math.min(2*vNom + 1000, 5000); }
+function nearestVEnsayoOption(v){
+  const opts = [250,500,1000,2500,5000];
+  return opts.reduce((best,o)=>Math.abs(o-v)<Math.abs(best-v)?o:best, opts[0]);
+}
+function suggestVEnsayoHub(){
+  const hint = document.getElementById('mo_vEnsayoHint');
+  const vNom = numOrUndef('mo_vNom');
+  if(!vNom){ hint.textContent=''; return; }
+  const nearest = nearestVEnsayoOption(suggestedVEnsayo(vNom));
+  // Si el técnico ya ajustó la tensión a mano en esta carga, no se la pisamos —
+  // solo se actualiza el texto de sugerencia/alerta.
+  if(!vEnsayoHubTouched) document.getElementById('mo_vEnsayo').value = String(nearest);
+  checkVEnsayoHub();
+}
+function onVEnsayoManualChangeHub(){
+  vEnsayoHubTouched = true;
+  checkVEnsayoHub();
+}
+function checkVEnsayoHub(){
+  const hint = document.getElementById('mo_vEnsayoHint');
+  const vNom = numOrUndef('mo_vNom');
+  if(!vNom){ hint.textContent=''; return; }
+  const chosen = parseFloat(document.getElementById('mo_vEnsayo').value);
+  const sug = suggestedVEnsayo(vNom);
+  if(chosen > sug*1.5){
+    hint.innerHTML = `⚠️ Vas a ensayar con ${chosen} V un motor de ${vNom} V nominal (sugerido ≈${nearestVEnsayoOption(sug)} V) — riesgo de dañar aislación debilitada.`;
+    hint.style.color = 'var(--warning, #f0b429)';
+  } else {
+    hint.style.color = '';
+    hint.textContent = `Sugerido para ${vNom} V nominal: ${nearestVEnsayoOption(sug)} V (IEEE 43 ≈ 2×Vnom+1000, tope 5000 V).`;
+  }
+}
+
 function previewIP(){
   const seis = document.getElementById('mo_hilos').value === '6';
-  let r1, r10;
+  let r1, r10, r30, fase;
   if(seis){
     const cands = [
-      [numOrUndef('mo_r1_u'), numOrUndef('mo_r10_u')],
-      [numOrUndef('mo_r1_v'), numOrUndef('mo_r10_v')],
-      [numOrUndef('mo_r1_w'), numOrUndef('mo_r10_w')]
-    ].filter(c=>c[0]!==undefined && c[0]>0);
-    if(cands.length){ cands.sort((a,b)=>a[0]-b[0]); [r1,r10] = cands[0]; }
+      ['U', numOrUndef('mo_r1_u'), numOrUndef('mo_r10_u')],
+      ['V', numOrUndef('mo_r1_v'), numOrUndef('mo_r10_v')],
+      ['W', numOrUndef('mo_r1_w'), numOrUndef('mo_r10_w')]
+    ].filter(c=>c[1]!==undefined && c[1]>0);
+    if(cands.length){
+      cands.sort((a,b)=>a[1]-b[1]);
+      [fase, r1, r10] = cands[0];
+    }
+    r30 = numOrUndef('mo_r30_gov');
+    document.getElementById('mo_governingPreview').value = fase ? `${fase} (R1 = ${r1} MΩ)` : '—';
   } else {
-    r1 = numOrUndef('mo_r1'); r10 = numOrUndef('mo_r10');
+    r1 = numOrUndef('mo_r1'); r10 = numOrUndef('mo_r10'); r30 = numOrUndef('mo_r30');
   }
   const ip = (r1!==undefined && r10!==undefined && r1>0) ? (r10/r1) : undefined;
-  document.getElementById('mo_ipPreview').value = ip!==undefined ? ip.toFixed(2) : '—';
+  document.getElementById('mo_ipPreview').value = ip!==undefined
+    ? (seis && fase ? `${ip.toFixed(2)} (fase ${fase})` : ip.toFixed(2))
+    : '—';
+  const dar = (r1!==undefined && r30!==undefined && r30>0) ? (r1/r30) : undefined;
+  document.getElementById('mo_darPreview').value = dar!==undefined
+    ? (seis && fase ? `${dar.toFixed(2)} (fase ${fase})` : dar.toFixed(2))
+    : '—';
 }
 
 // ═══════════ envío (con cola local si falla) ═══════════
 async function enviarCaptura(modulo, equipo_tag, datos, nombreParaToast){
-  if(!equipo_tag){ toast('Falta el TAG del equipo.', 'error'); return false; }
+  if(!equipo_tag){ toast('Falta el TAG del equipo.', 'error'); return { ok:false, queued:false }; }
   const item = { modulo, equipo_tag, datos, ts: Date.now() };
   try{
     if(typeof SatSync === 'undefined' || !SatSync.init()) throw new Error('sin conexión configurada');
     await SatSync.guardarCaptura(item);
     toast(`☁️ ${nombreParaToast} enviado.`, 'success');
-    return true;
+    return { ok:true, queued:false };
   }catch(err){
     pendientes.push(item);
     localStorage.setItem(PEND_KEY, JSON.stringify(pendientes));
     renderPendientes();
     toast(`⚠️ Sin conexión — ${nombreParaToast} quedó en pendientes (${pendientes.length}).`, 'warn');
-    return true; // igual se considera "guardado" localmente, no se pierde
+    // se considera "guardado" localmente (no se pierde), por eso ok:true —
+    // pero queued:true le avisa al caller que todavía no llegó a la nube.
+    return { ok:true, queued:true };
   }
 }
 
@@ -476,6 +580,7 @@ function renderPendientes(){
   document.getElementById('pendCount').textContent = pendientes.length;
   pill.classList.toggle('hidden', pendientes.length===0);
   card.classList.toggle('hidden', pendientes.length===0);
+  renderListaEquipos();
   box.innerHTML = pendientes.map((p,i)=>`
     <div class="pend-item">
       <div class="pend-head">
@@ -513,11 +618,36 @@ async function reintentarEnvios(){
 function guardarMotor(){
   const tag = txt('mo_tag');
   const seis = document.getElementById('mo_hilos').value === '6';
+  const okRango = validarRangos([
+    ['mo_tempAmb', -10, 60, 'Temp. ambiente', '°C'], ['mo_tempBob', -10, 200, 'Temp. de bobinado', '°C'],
+    ['mo_r1', 0.01, 100000, 'R aislación 1 min', 'MΩ'], ['mo_r10', 0.01, 100000, 'R aislación 10 min', 'MΩ'], ['mo_r30', 0.01, 100000, 'R a 30 seg', 'MΩ'],
+    ['mo_r1_u', 0.01, 100000, 'R1 U', 'MΩ'], ['mo_r10_u', 0.01, 100000, 'R10 U', 'MΩ'],
+    ['mo_r1_v', 0.01, 100000, 'R1 V', 'MΩ'], ['mo_r10_v', 0.01, 100000, 'R10 V', 'MΩ'],
+    ['mo_r1_w', 0.01, 100000, 'R1 W', 'MΩ'], ['mo_r10_w', 0.01, 100000, 'R10 W', 'MΩ'],
+    ['mo_r30_gov', 0.01, 100000, 'R30 gobernante', 'MΩ'],
+    ['mo_r1_uv', 0.01, 100000, 'R1 U-V', 'MΩ'], ['mo_r10_uv', 0.01, 100000, 'R10 U-V', 'MΩ'],
+    ['mo_r1_vw', 0.01, 100000, 'R1 V-W', 'MΩ'], ['mo_r10_vw', 0.01, 100000, 'R10 V-W', 'MΩ'],
+    ['mo_r1_wu', 0.01, 100000, 'R1 W-U', 'MΩ'], ['mo_r10_wu', 0.01, 100000, 'R10 W-U', 'MΩ'],
+    ['mo_rUV', 0, 10000, 'R U-V', 'Ω'], ['mo_rVW', 0, 10000, 'R V-W', 'Ω'], ['mo_rWU', 0, 10000, 'R W-U', 'Ω'],
+    ['mo_iR', 0.01, 5000, 'I R', 'A'], ['mo_iS', 0.01, 5000, 'I S', 'A'], ['mo_iT', 0.01, 5000, 'I T', 'A'],
+    ['mo_vNom', 0, 30000, 'Tensión nominal', 'V'], ['mo_kw', 0, 3000, 'Potencia', 'kW'],
+    ['mo_iNom', 0, 5000, 'Corriente nominal', 'A'], ['mo_rpm', 0, 20000, 'RPM']
+  ]);
+  if(!okRango) return;
+  const vNom = numOrUndef('mo_vNom');
+  const vEnsayo = numOrUndef('mo_vEnsayo');
+  if(vNom && vEnsayo && vEnsayo > suggestedVEnsayo(vNom)*1.5){
+    const sugerida = nearestVEnsayoOption(suggestedVEnsayo(vNom));
+    if(!confirm(`Vas a ensayar con ${vEnsayo} V un motor de ${vNom} V nominal (sugerido ≈${sugerida} V). Una tensión excesiva puede dañar una aislación ya debilitada. ¿Confirmás que querés continuar igual?`)) return;
+  }
   const datos = {
     fecha: document.getElementById('mo_fecha').value || hoy(),
     hilos: document.getElementById('mo_hilos').value,
-    vEnsayo: numOrUndef('mo_vEnsayo'), tempAmb: numOrUndef('mo_tempAmb'),
+    sistema: document.getElementById('mo_sistema').value,
+    vNom: numOrUndef('mo_vNom'), kw: numOrUndef('mo_kw'), iNom: numOrUndef('mo_iNom'), rpm: numOrUndef('mo_rpm'),
+    vEnsayo: numOrUndef('mo_vEnsayo'), tempAmb: numOrUndef('mo_tempAmb'), tempBob: numOrUndef('mo_tempBob'),
     r1: seis?undefined:numOrUndef('mo_r1'), r10: seis?undefined:numOrUndef('mo_r10'),
+    r30: seis?undefined:numOrUndef('mo_r30'), r30gov: seis?numOrUndef('mo_r30_gov'):undefined,
     r1u:numOrUndef('mo_r1_u'), r10u:numOrUndef('mo_r10_u'),
     r1v:numOrUndef('mo_r1_v'), r10v:numOrUndef('mo_r10_v'),
     r1w:numOrUndef('mo_r1_w'), r10w:numOrUndef('mo_r10_w'),
@@ -528,11 +658,18 @@ function guardarMotor(){
     iR:numOrUndef('mo_iR'), iS:numOrUndef('mo_iS'), iT:numOrUndef('mo_iT'),
     obs: txt('mo_obs')
   };
-  enviarCaptura('motor_pro', tag, datos, `Ensayo de ${tag}`).then(ok=>{ if(ok) limpiarFormulario('motor'); });
+  enviarCaptura('motor_pro', tag, datos, `Ensayo de ${tag}`).then(res=>{ if(res.ok) limpiarFormulario('motor'); });
 }
 
 function guardarAlineacion(){
   const tag = txt('al_tag');
+  const okRango = validarRangos([
+    ['al_afOffV', -50, 50, 'Offset vertical (As-Found)'], ['al_afOffH', -50, 50, 'Offset horizontal (As-Found)'],
+    ['al_afAngV', -50, 50, 'Ángulo vertical (As-Found)'], ['al_afAngH', -50, 50, 'Ángulo horizontal (As-Found)'],
+    ['al_alOffV', -50, 50, 'Offset vertical (As-Left)'], ['al_alOffH', -50, 50, 'Offset horizontal (As-Left)'],
+    ['al_alAngV', -50, 50, 'Ángulo vertical (As-Left)'], ['al_alAngH', -50, 50, 'Ángulo horizontal (As-Left)']
+  ]);
+  if(!okRango) return;
   const datos = {
     fecha: document.getElementById('al_fecha').value || hoy(),
     tecnico: txt('al_tecnico'),
@@ -544,11 +681,18 @@ function guardarAlineacion(){
     observaciones: txt('al_obs'),
     proximaRevision: document.getElementById('al_proxima').value
   };
-  enviarCaptura('alineacion', tag, datos, `Alineación de ${tag}`).then(ok=>{ if(ok) limpiarFormulario('alineacion'); });
+  enviarCaptura('alineacion', tag, datos, `Alineación de ${tag}`).then(res=>{ if(res.ok) limpiarFormulario('alineacion'); });
 }
 
 function guardarTablero(){
   const tag = txt('ta_tag');
+  const okRango = validarRangos([
+    ['ta_tempAmb', -10, 60, 'Temp. ambiente', '°C'], ['ta_tempMax', -10, 200, 'Temp. máxima medida', '°C'],
+    ['ta_iR', 0.01, 5000, 'I R', 'A'], ['ta_iS', 0.01, 5000, 'I S', 'A'], ['ta_iT', 0.01, 5000, 'I T', 'A'],
+    ['ta_vR', 0, 30000, 'V R', 'V'], ['ta_vS', 0, 30000, 'V S', 'V'], ['ta_vT', 0, 30000, 'V T', 'V'],
+    ['ta_fp', 0, 1, 'Factor de potencia'], ['ta_thdV', 0, 100, 'THD tensión', '%'], ['ta_rAisl', 0.01, 100000, 'R aislación', 'MΩ']
+  ]);
+  if(!okRango) return;
   const datos = {
     fecha: document.getElementById('ta_fecha').value || hoy(),
     faseMax: document.getElementById('ta_faseMax').value,
@@ -558,11 +702,19 @@ function guardarTablero(){
     fp:numOrUndef('ta_fp'), thdV:numOrUndef('ta_thdV'), rAisl:numOrUndef('ta_rAisl'),
     obs: txt('ta_obs')
   };
-  enviarCaptura('tablero_pro', tag, datos, `Medición de ${tag}`).then(ok=>{ if(ok) limpiarFormulario('tablero'); });
+  enviarCaptura('tablero_pro', tag, datos, `Medición de ${tag}`).then(res=>{ if(res.ok) limpiarFormulario('tablero'); });
 }
 
 function guardarRefrigeracion(){
   const tag = txt('rf_tag');
+  const okRango = validarRangos([
+    ['rf_tempEntrada', -20, 60, 'Temp. entrada de aire', '°C'], ['rf_tempSalida', -20, 60, 'Temp. salida de aire', '°C'], ['rf_tempAmb', -20, 60, 'Temp. ambiente climatizado', '°C'],
+    ['rf_presAlta', 0, 50, 'Presión alta', 'bar'], ['rf_presBaja', 0, 50, 'Presión baja', 'bar'],
+    ['rf_iR', 0.01, 5000, 'I R', 'A'], ['rf_iS', 0.01, 5000, 'I S', 'A'], ['rf_iT', 0.01, 5000, 'I T', 'A'],
+    ['rf_vR', 0, 30000, 'V R', 'V'], ['rf_vS', 0, 30000, 'V S', 'V'], ['rf_vT', 0, 30000, 'V T', 'V'],
+    ['rf_velAire', 0, 50, 'Velocidad de aire', 'm/s']
+  ]);
+  if(!okRango) return;
   const datos = {
     fecha: document.getElementById('rf_fecha').value || hoy(),
     tempEntrada: numOrUndef('rf_tempEntrada'), tempSalida: numOrUndef('rf_tempSalida'), tempAmb: numOrUndef('rf_tempAmb'),
@@ -572,14 +724,14 @@ function guardarRefrigeracion(){
     velAire: numOrUndef('rf_velAire'), filtro: document.getElementById('rf_filtro').value,
     obs: txt('rf_obs')
   };
-  enviarCaptura('refrigeracion', tag, datos, `Lectura de ${tag}`).then(ok=>{ if(ok) limpiarFormulario('refrigeracion'); });
+  enviarCaptura('refrigeracion', tag, datos, `Lectura de ${tag}`).then(res=>{ if(res.ok) limpiarFormulario('refrigeracion'); });
 }
 
 function limpiarFormulario(cual){
   const prefijo = {motor:'mo_', alineacion:'al_', tablero:'ta_', refrigeracion:'rf_'}[cual];
   document.querySelectorAll(`#view-${cual} input[type=text], #view-${cual} input[type=number], #view-${cual} textarea`).forEach(el=>el.value='');
   document.querySelectorAll(`#view-${cual} input[type=date]`).forEach(el=>el.value=hoy());
-  if(cual==='motor'){ document.getElementById('mo_hilos').value='3'; toggleMotorHilos(); document.getElementById('mo_vEnsayo').value='500'; }
+  if(cual==='motor'){ document.getElementById('mo_hilos').value='3'; toggleMotorHilos(); document.getElementById('mo_vEnsayo').value='500'; document.getElementById('mo_sistema').value='Trifásico'; toggleMotorSistema(); vEnsayoHubTouched=false; document.getElementById('mo_vEnsayoHint').textContent=''; }
   if(cual==='alineacion'){ document.getElementById('al_semaforo').value='verde'; document.getElementById('al_pataDetectada').value='no'; }
   if(cual==='refrigeracion'){ document.getElementById('rf_filtro').value=''; }
 }
@@ -590,21 +742,42 @@ function actualizarEstadoConexion(){
   document.getElementById('connDot').className = 'dot ' + (on?'on':'off');
   document.getElementById('connLabel').textContent = on ? 'conectado' : 'sin conectar';
 }
+function renderListaEquipos(){
+  const tagsRemotos = new Set(equiposCache.map(e=>e.tag));
+  const opciones = equiposCache.map(e=>`<option value="${e.tag}">${e.nombre||''}</option>`);
+  // agrega tags de pendientes locales que todavía no están en el catálogo remoto
+  // (útil offline o antes de la primera sincronización)
+  new Set(pendientes.map(p=>p.equipo_tag)).forEach(tag=>{
+    if(tag && !tagsRemotos.has(tag)) opciones.push(`<option value="${tag}"></option>`);
+  });
+  document.getElementById('listaEquipos').innerHTML = opciones.join('');
+}
 async function cargarEquipos(){
   try{
     equiposCache = await SatSync.listarEquipos();
-    document.getElementById('listaEquipos').innerHTML = equiposCache.map(e=>`<option value="${e.tag}">${e.nombre||''}</option>`).join('');
   }catch(err){
     console.warn('[HubCampo] no se pudo leer equipos', err);
   }
+  renderListaEquipos();
 }
 
 ['mo_fecha','al_fecha','ta_fecha','rf_fecha'].forEach(id=>document.getElementById(id).value = hoy());
+toggleMotorSistema();
 renderPendientes();
 actualizarEstadoConexion();
 if(SatSync.init()){ cargarEquipos(); }
 if(navigator.onLine) reintentarEnvios();
-window.addEventListener('online', reintentarEnvios);
+window.addEventListener('online', async ()=>{
+  const yaConectado = typeof SatSync !== 'undefined' && SatSync.estaConfigurado();
+  actualizarEstadoConexion();
+  if(!yaConectado && SatSync.init()){
+    toast('☁️ Conexión restablecida.', 'success');
+    actualizarEstadoConexion();
+    await cargarEquipos();
+  }
+  reintentarEnvios();
+});
+window.addEventListener('offline', actualizarEstadoConexion);
 </script>
 </body>
 </html>
