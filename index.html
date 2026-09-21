@@ -9,6 +9,7 @@
 <title>Hub de Campo — Satélite MANTEC</title>
 <script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2"></script>
 <script src="./sat-sync.js"></script>
+<script src="https://cdn.sheetjs.com/xlsx-0.20.2/package/dist/xlsx.full.min.js"></script>
 <link rel="preconnect" href="https://fonts.googleapis.com">
 <link href="https://fonts.googleapis.com/css2?family=Rajdhani:wght@400;500;600;700&family=Share+Tech+Mono&family=Exo+2:wght@300;400;500;600&display=swap" rel="stylesheet">
 <style>
@@ -124,6 +125,7 @@ button.btn.small { padding:7px 12px; font-size:11px; }
   <button class="tab-btn" data-tab="alineacion">🎯 Alineación</button>
   <button class="tab-btn" data-tab="tablero">🧯 Tableros</button>
   <button class="tab-btn" data-tab="refrigeracion">❄️ Refrigeración</button>
+  <button class="tab-btn" data-tab="equipos">📋 Equipos</button>
 </nav>
 </div>
 
@@ -415,6 +417,22 @@ button.btn.small { padding:7px 12px; font-size:11px; }
     </div>
   </section>
 
+  <!-- ═══════════ EQUIPOS (catálogo compartido) ═══════════ -->
+  <section class="view" id="view-equipos">
+    <div class="card">
+      <div class="card-title">Catálogo de equipos <span id="equiposCount" style="color:var(--text2); font-weight:400; letter-spacing:0; text-transform:none;">0 cargados</span></div>
+      <div class="card-note">El catálogo <code>equipos</code> es compartido por los 4 módulos (Motor, Alineación, Tablero, Refrigeración) — un TAG creado acá ya aparece en el autocompletado de todos.</div>
+      <div style="display:flex; gap:8px; margin-top:12px; flex-wrap:wrap;">
+        <button class="btn" onclick="cargarEquipos().then(()=>toast('Catálogo actualizado ('+equiposCache.length+' equipos).','ok'))">🔄 Actualizar catálogo</button>
+        <button class="btn" onclick="downloadTemplateEquipos()">⬇️ Descargar plantilla</button>
+        <button class="btn primary" onclick="document.getElementById('equiposFileInput').click()">📤 Importar equipos (Excel)</button>
+        <input type="file" id="equiposFileInput" accept=".xlsx,.xls,.csv" class="hidden" onchange="handleEquiposFileUpload(event)">
+      </div>
+      <div class="card-note" style="margin-top:8px;">Para una migración grande: descargá la plantilla, completá una fila por equipo (TAG es obligatorio y debe ser único) y volvé a subirla. Filas con TAG repetido actualizan el equipo existente en vez de duplicarlo.</div>
+      <div id="importEquiposStatus" style="margin-top:10px; font-size:12.5px;"></div>
+    </div>
+  </section>
+
   <!-- ═══════════ PENDIENTES (compartido) ═══════════ -->
   <section class="card hidden" id="pendCard">
     <div class="card-title">Pendientes de envío <button class="btn small" onclick="reintentarEnvios()">Reintentar</button></div>
@@ -563,13 +581,27 @@ async function enviarCaptura(modulo, equipo_tag, datos, nombreParaToast){
     toast(`☁️ ${nombreParaToast} enviado.`, 'success');
     return { ok:true, queued:false };
   }catch(err){
-    pendientes.push(item);
-    localStorage.setItem(PEND_KEY, JSON.stringify(pendientes));
-    renderPendientes();
-    toast(`⚠️ Sin conexión — ${nombreParaToast} quedó en pendientes (${pendientes.length}).`, 'warn');
-    // se considera "guardado" localmente (no se pierde), por eso ok:true —
-    // pero queued:true le avisa al caller que todavía no llegó a la nube.
-    return { ok:true, queued:true };
+    // Antes esto encolaba CUALQUIER error como "sin conexión", incluyendo
+    // errores de servidor (RLS denegado, tabla inexistente, FK rota). El toast
+    // mentía ("sin conexión" cuando en realidad Supabase rechazó el dato) y el
+    // item quedaba en pendientes para siempre — cada "Reintentar" volvía a
+    // fallar en silencio, sin pista de qué corregir. Ahora se distingue: solo
+    // se encola si de verdad parece un problema de red/conectividad.
+    const esRed = !navigator.onLine || err.name === 'TypeError' || /fetch|network/i.test(err.message || '');
+    if (esRed){
+      pendientes.push(item);
+      localStorage.setItem(PEND_KEY, JSON.stringify(pendientes));
+      renderPendientes();
+      toast(`⚠️ Sin conexión — ${nombreParaToast} quedó en pendientes (${pendientes.length}).`, 'warn');
+      // se considera "guardado" localmente (no se pierde), por eso ok:true —
+      // pero queued:true le avisa al caller que todavía no llegó a la nube.
+      return { ok:true, queued:true };
+    }
+    // Error de servidor: no se encola (reintentar solo repetiría el mismo
+    // rechazo) y se avisa con el mensaje real para poder diagnosticarlo.
+    console.error('[HubCampo] error de servidor guardando captura', modulo, equipo_tag, err);
+    toast(`❌ Error al guardar ${nombreParaToast}: ${err.message}`, 'error');
+    return { ok:false, queued:false };
   }
 }
 
@@ -728,7 +760,6 @@ function guardarRefrigeracion(){
 }
 
 function limpiarFormulario(cual){
-  const prefijo = {motor:'mo_', alineacion:'al_', tablero:'ta_', refrigeracion:'rf_'}[cual];
   document.querySelectorAll(`#view-${cual} input[type=text], #view-${cual} input[type=number], #view-${cual} textarea`).forEach(el=>el.value='');
   document.querySelectorAll(`#view-${cual} input[type=date]`).forEach(el=>el.value=hoy());
   if(cual==='motor'){ document.getElementById('mo_hilos').value='3'; toggleMotorHilos(); document.getElementById('mo_vEnsayo').value='500'; document.getElementById('mo_sistema').value='Trifásico'; toggleMotorSistema(); vEnsayoHubTouched=false; document.getElementById('mo_vEnsayoHint').textContent=''; }
@@ -751,6 +782,8 @@ function renderListaEquipos(){
     if(tag && !tagsRemotos.has(tag)) opciones.push(`<option value="${tag}"></option>`);
   });
   document.getElementById('listaEquipos').innerHTML = opciones.join('');
+  const countEl = document.getElementById('equiposCount');
+  if(countEl) countEl.textContent = `${equiposCache.length} cargado(s)`;
 }
 async function cargarEquipos(){
   try{
@@ -759,6 +792,118 @@ async function cargarEquipos(){
     console.warn('[HubCampo] no se pudo leer equipos', err);
   }
   renderListaEquipos();
+}
+
+// ═══════════ Importación masiva de equipos (Excel) — migración inicial ═══════════
+const EQUIPOS_TEMPLATE_HEADERS = ['TAG','Nombre','Tipo','Ubicacion'];
+
+function downloadTemplateEquipos(){
+  const sample = [
+    EQUIPOS_TEMPLATE_HEADERS,
+    ['MOT-BOMBA-01', 'Motor bomba de agua 01', 'Motor', 'Planta A · Sala de bombas'],
+    ['TAB-GENERAL-PLANTA', 'Tablero general', 'Tablero eléctrico', 'Planta A · Sala eléctrica'],
+    ['AC-OFICINA-02', 'Aire acondicionado oficina 2', 'Refrigeración', 'Edificio administrativo']
+  ];
+  const ws = XLSX.utils.aoa_to_sheet(sample);
+  const wb = XLSX.utils.book_new();
+  XLSX.utils.book_append_sheet(wb, ws, 'Equipos');
+  XLSX.writeFile(wb, 'plantilla_equipos_hub.xlsx');
+}
+
+function handleEquiposFileUpload(evt){
+  const file = evt.target.files[0];
+  if (!file) return;
+  const status = document.getElementById('importEquiposStatus');
+  status.style.color = '';
+  status.textContent = 'Procesando…';
+  const reader = new FileReader();
+  reader.onload = async (e) => {
+    try{
+      const wb = XLSX.read(e.target.result, {type:'array', cellDates:true, defval:''});
+      const sheet = wb.Sheets[wb.SheetNames[0]];
+      const rows = XLSX.utils.sheet_to_json(sheet, {defval:''});
+      await importEquiposRows(rows, status);
+    }catch(err){
+      console.error(err);
+      status.style.color = 'var(--danger)';
+      status.textContent = '❌ Error al procesar el archivo: ' + err.message;
+    }
+    evt.target.value = '';
+  };
+  reader.readAsArrayBuffer(file);
+}
+
+function findColEquipos(row, names){
+  for (const n of names){
+    for (const key of Object.keys(row)){
+      if (key.trim().toLowerCase() === n.toLowerCase()) return row[key];
+    }
+  }
+  return '';
+}
+
+// Importa fila por fila (secuencial, no en paralelo) para no saturar Supabase
+// en una migración grande y para poder reportar exactamente qué fila falló.
+// Se resuelve "ya existe" contra el catálogo (equiposCache, recién refrescado)
+// y se llama a SatSync.actualizarEquipo() explícitamente cuando corresponde,
+// para dejar registro explícito de qué se creó vs. qué se actualizó en cada
+// fila. (Desde sat-sync.js v2, buscarOCrearEquipo() también rellena los campos
+// vacíos por su cuenta, pero mantener la lógica acá hace explícito el flujo
+// de la migración y el conteo creados/actualizados de abajo.)
+async function importEquiposRows(rows, status){
+  if(typeof SatSync === 'undefined' || !SatSync.init()){
+    status.style.color = 'var(--danger)';
+    status.textContent = '⚠️ Conectá Supabase primero (arriba, antes de importar).';
+    return;
+  }
+  if(!rows.length){
+    status.style.color = 'var(--warning)';
+    status.textContent = 'El archivo no tiene filas.';
+    return;
+  }
+  status.textContent = 'Cargando catálogo actual…';
+  await cargarEquipos(); // catálogo fresco antes de decidir crear vs. actualizar
+  const existentesPorTag = new Map(equiposCache.map(e=>[e.tag, e]));
+
+  let creados = 0, actualizados = 0, fail = 0;
+  const errores = [];
+  for(let i=0; i<rows.length; i++){
+    const row = rows[i];
+    const tag = String(findColEquipos(row, ['TAG','Tag']) || '').trim();
+    if(!tag){ fail++; errores.push(`Fila ${i+2}: sin TAG`); continue; }
+    const nombre = String(findColEquipos(row, ['Nombre']) || '').trim();
+    const tipo = String(findColEquipos(row, ['Tipo']) || '').trim();
+    const ubicacion = String(findColEquipos(row, ['Ubicacion','Ubicación']) || '').trim();
+    try{
+      const existente = existentesPorTag.get(tag);
+      if(existente){
+        // Solo se pisan los campos que la fila realmente trae — una celda
+        // vacía en el Excel no borra un dato que ya estaba cargado.
+        const cambios = {};
+        if(nombre) cambios.nombre = nombre;
+        if(tipo) cambios.tipo = tipo;
+        if(ubicacion) cambios.ubicacion = ubicacion;
+        if(Object.keys(cambios).length) await SatSync.actualizarEquipo(existente.id, cambios);
+        actualizados++;
+      } else {
+        const nuevo = await SatSync.buscarOCrearEquipo(tag, { tipo, nombre, ubicacion });
+        existentesPorTag.set(tag, nuevo); // por si el mismo TAG se repite dentro del mismo archivo
+        creados++;
+      }
+    }catch(err){
+      console.error('[HubCampo] error importando equipo', tag, err);
+      errores.push(`Fila ${i+2} (${tag}): ${err.message}`);
+      fail++;
+    }
+    status.style.color = '';
+    status.textContent = `Importando… ${i+1}/${rows.length}`;
+  }
+  await cargarEquipos();
+  status.style.color = fail ? 'var(--warning)' : 'var(--accent3)';
+  status.textContent = fail
+    ? `✅ ${creados} creado(s) · ${actualizados} actualizado(s) · ⚠️ ${fail} con error (ver consola).`
+    : `✅ ${creados} creado(s) · ${actualizados} actualizado(s) correctamente.`;
+  if(errores.length) console.warn('[HubCampo] errores de importación de equipos:', errores);
 }
 
 ['mo_fecha','al_fecha','ta_fecha','rf_fecha'].forEach(id=>document.getElementById(id).value = hoy());

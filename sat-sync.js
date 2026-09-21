@@ -103,7 +103,27 @@
     if (!client) throw new Error('[SatSync] no inicializado');
     const { data: existente, error: e1 } = await client.from('equipos').select('*').eq('tag', tag).maybeSingle();
     if (e1) throw e1;
-    if (existente) return existente;
+    if (existente) {
+      // Antes esta rama devolvía "existente" sin tocarlo, así que un equipo
+      // creado con solo el TAG (p. ej. desde una captura del hub de campo)
+      // se quedaba con tipo/ubicacion en null para siempre, aunque un módulo
+      // Pro más tarde llamara a esta misma función con esos datos completos.
+      // Ahora rellena los campos vacíos — nunca sobreescribe un dato que ya
+      // estaba cargado (respeta tanto ediciones manuales como importaciones).
+      const updates = {};
+      if (!existente.tipo && extra.tipo) updates.tipo = extra.tipo;
+      if (!existente.ubicacion && extra.ubicacion) updates.ubicacion = extra.ubicacion;
+      if ((!existente.nombre || existente.nombre === existente.tag) && extra.nombre) {
+        updates.nombre = extra.nombre;
+      }
+      if (Object.keys(updates).length) {
+        const { data, error } = await client.from('equipos')
+          .update(updates).eq('id', existente.id).select().single();
+        if (error) throw error;
+        return data;
+      }
+      return existente;
+    }
     const { data, error } = await client.from('equipos')
       .insert({ tag, nombre: extra.nombre || tag, tipo: extra.tipo || null, ubicacion: extra.ubicacion || null })
       .select().single();
