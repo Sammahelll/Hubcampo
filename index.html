@@ -125,6 +125,7 @@ button.btn.small { padding:7px 12px; font-size:11px; }
   <button class="tab-btn" data-tab="alineacion">🎯 Alineación</button>
   <button class="tab-btn" data-tab="tablero">🧯 Tableros</button>
   <button class="tab-btn" data-tab="refrigeracion">❄️ Refrigeración</button>
+  <button class="tab-btn" data-tab="bombas">💧 Bombas</button>
   <button class="tab-btn" data-tab="equipos">📋 Equipos</button>
 </nav>
 </div>
@@ -417,6 +418,77 @@ button.btn.small { padding:7px 12px; font-size:11px; }
     </div>
   </section>
 
+  <!-- ═══════════ BOMBAS ═══════════ -->
+  <section class="view" id="view-bombas">
+    <div class="card">
+      <div class="card-title">Equipo</div>
+      <div class="field-row">
+        <label class="field-label">TAG de la bomba</label>
+        <input type="text" id="bo_tag" list="listaEquipos" placeholder="Ej: BBA-ENFRIAMIENTO-01" autocomplete="off">
+      </div>
+      <div class="card-note">Elegí uno existente de la lista o escribí un TAG nuevo — se crea solo al guardar. La ficha (producto, densidad, nivel, nominales) se completa en Bomba Pro.</div>
+    </div>
+
+    <div class="card">
+      <div class="card-title">Lectura</div>
+      <div class="field-row">
+        <label class="field-label">Fecha y hora</label><input type="datetime-local" id="bo_fecha">
+      </div>
+
+      <div class="section-label">Presiones</div>
+      <div class="field-row">
+        <label class="field-label">Unidad del manómetro</label>
+        <select id="bo_unidadP"><option value="bar">bar</option><option value="kgf">kgf/cm²</option><option value="psi">psi</option><option value="kpa">kPa</option></select>
+      </div>
+      <div class="field-grid2">
+        <div class="field-row"><label class="field-label">Descarga</label><input type="number" step="any" id="bo_presDesc"></div>
+        <div class="field-row"><label class="field-label">Succión (si hay manómetro)</label><input type="number" step="any" id="bo_presSucc"></div>
+      </div>
+
+      <div class="section-label">Nivel del tanque de succión</div>
+      <div class="field-grid2">
+        <div class="field-row"><label class="field-label">Nivel leído en el indicador</label><input type="number" step="any" id="bo_nivel"></div>
+        <div class="field-row"><label class="field-label">El indicador muestra</label>
+          <select id="bo_nivelUni"><option value="m">Metros (m)</option><option value="%">Porcentaje (%)</option></select>
+        </div>
+      </div>
+      <div class="card-note">Si no hay manómetro de succión, Bomba Pro la estima con este nivel y la densidad del producto.</div>
+
+      <div class="section-label">Operación</div>
+      <div class="field-row"><label class="field-label">Caudal (m³/h)</label><input type="number" step="any" id="bo_caudal"></div>
+
+      <div class="section-label">Inspección</div>
+      <div class="field-row"><label class="field-label">Tipo de sello / acople</label>
+        <select id="bo_tipoSello" onchange="actualizarSelloHub()">
+          <option value="Sello mecánico">Sello mecánico</option>
+          <option value="Empaquetadura (prensaestopa)">Empaquetadura (prensaestopa)</option>
+          <option value="Acople magnético (sin sello)">Acople magnético (sin sello)</option>
+        </select>
+      </div>
+      <div class="field-grid2">
+        <div class="field-row"><label class="field-label">Estado</label><select id="bo_sello"></select></div>
+        <div class="field-row"><label class="field-label">Ruido de cavitación</label>
+          <select id="bo_ruido"><option value="">No inspeccionado</option><option value="ninguno">Ninguno</option><option value="leve">Leve</option><option value="fuerte">Fuerte</option></select>
+        </div>
+      </div>
+
+      <details style="margin-top:14px;">
+        <summary class="field-label" style="cursor:pointer;">Datos adicionales (opcional)</summary>
+        <div class="field-grid2" style="margin-top:10px;">
+          <div class="field-row"><label class="field-label">Apertura válvula de descarga (%)</label><input type="number" step="any" id="bo_valvula"></div>
+          <div class="field-row"><label class="field-label">Densidad de esta medición</label><input type="number" step="0.001" id="bo_dens" placeholder="Solo si cambió la concentración"></div>
+          <div class="field-row"><label class="field-label">Temp. del fluido (°C)</label><input type="number" step="0.1" id="bo_tFluido"></div>
+          <div class="field-row"><label class="field-label">NPSH disponible en sitio (m)</label><input type="number" step="any" id="bo_npshd"></div>
+        </div>
+      </details>
+
+      <div class="field-row" style="margin-top:10px;"><label class="field-label">Observaciones</label><textarea id="bo_obs" placeholder="Ruido, vibración, fugas, estado del colador, temperatura de carcasa…"></textarea></div>
+
+      <button class="btn primary big" onclick="guardarBombas()">☁️ Guardar lectura</button>
+      <div class="card-note" style="margin-top:8px;">Se sube cruda — el diagnóstico (altura, NPSH, referencia, severidad) lo calcula Bomba Pro al traer la captura. Las mediciones eléctricas van en Motores/Tableros y la vibración en Vibra Pro.</div>
+    </div>
+  </section>
+
   <!-- ═══════════ EQUIPOS (catálogo compartido) ═══════════ -->
   <section class="view" id="view-equipos">
     <div class="card">
@@ -624,7 +696,7 @@ function renderPendientes(){
       </div>
     </div>`).join('');
 }
-function nombreModulo(m){ return {motor_pro:'Motor', alineacion:'Alineación', tablero_pro:'Tablero', refrigeracion:'Refrigeración'}[m] || m; }
+function nombreModulo(m){ return {motor_pro:'Motor', alineacion:'Alineación', tablero_pro:'Tablero', refrigeracion:'Refrigeración', bomba_pro:'Bomba'}[m] || m; }
 function eliminarPendiente(i){
   if(!confirm('¿Descartar esta captura pendiente? No se va a poder recuperar.')) return;
   pendientes.splice(i,1);
@@ -759,12 +831,67 @@ function guardarRefrigeracion(){
   enviarCaptura('refrigeracion', tag, datos, `Lectura de ${tag}`).then(res=>{ if(res.ok) limpiarFormulario('refrigeracion'); });
 }
 
+function nowLocalHub(){ const d = new Date(); d.setMinutes(d.getMinutes() - d.getTimezoneOffset()); return d.toISOString().slice(0,16); }
+const SELLO_HUB = {
+  'Sello mecánico': [['seco','Sin fugas (seco)'],['leve','Goteo leve u ocasional'],['abundante','Goteo abundante / continuo'],['chorro','Fuga en chorro o pérdida de presión']],
+  'Empaquetadura (prensaestopa)': [['normal','Goteo normal y controlado'],['seco','Sin goteo (prensaestopa muy ajustado)'],['excesivo','Goteo excesivo'],['seco_caliente','Seca y caliente']],
+  'Acople magnético (sin sello)': [['ok','Normal, sin señales de desacople'],['temp','Camisa más caliente de lo habitual'],['ruido','Ruido/vibración anormal en el acople'],['desacople','Desacople confirmado (motor gira, no bombea)']]
+};
+function actualizarSelloHub(){
+  const t = document.getElementById('bo_tipoSello').value;
+  document.getElementById('bo_sello').innerHTML = '<option value="">No inspeccionado</option>' + SELLO_HUB[t].map(([v,l])=>`<option value="${v}">${l}</option>`).join('');
+}
+const P_FACTOR_HUB = {bar:1, kgf:0.980665, psi:0.0689476, kpa:0.01};
+function guardarBombas(){
+  const tag = txt('bo_tag');
+  const uni = document.getElementById('bo_unidadP').value;
+  const f = P_FACTOR_HUB[uni];
+  // presiones: rango físico razonable expresado en bar (la succión puede ser leve vacío)
+  for(const [id, minBar, etiqueta] of [['bo_presDesc', 0, 'Presión de descarga'], ['bo_presSucc', -1.01, 'Presión de succión']]){
+    const v = numOrUndef(id);
+    if(v === undefined) continue;
+    const bar = v * f;
+    if(bar < minBar || bar > 60){
+      toast(`⚠️ ${etiqueta}: ${v} ${uni} equivale a ${bar.toFixed(2)} bar, fuera de rango (${minBar}–60 bar).`, 'error');
+      document.getElementById(id).focus(); return;
+    }
+  }
+  const nivUni = document.getElementById('bo_nivelUni').value;
+  const okRango = validarRangos([
+    ['bo_nivel', 0, nivUni === '%' ? 100 : 60, 'Nivel del tanque', nivUni],
+    ['bo_caudal', 0, 50000, 'Caudal', 'm³/h'],
+    ['bo_valvula', 0, 100, 'Apertura de válvula', '%'],
+    ['bo_dens', 0.5, 2.5, 'Densidad', ''],
+    ['bo_tFluido', -20, 150, 'Temp. del fluido', '°C'],
+    ['bo_npshd', 0, 200, 'NPSH disponible', 'm']
+  ]);
+  if(!okRango) return;
+  const sello = document.getElementById('bo_sello').value;
+  const nivel = numOrUndef('bo_nivel');
+  const datos = {
+    fecha: document.getElementById('bo_fecha').value || nowLocalHub(),
+    unidadP: uni,
+    presDesc: numOrUndef('bo_presDesc'), presSucc: numOrUndef('bo_presSucc'),
+    nivel, nivelUnidad: nivel !== undefined ? nivUni : undefined,
+    caudal: numOrUndef('bo_caudal'), valvula: numOrUndef('bo_valvula'),
+    densidad: numOrUndef('bo_dens'), tFluido: numOrUndef('bo_tFluido'), npshd: numOrUndef('bo_npshd'),
+    tipoAcople: sello ? document.getElementById('bo_tipoSello').value : undefined,
+    sello: sello || undefined,
+    ruido: document.getElementById('bo_ruido').value || undefined,
+    obs: txt('bo_obs')
+  };
+  const hayDato = ['presDesc','presSucc','nivel','caudal','valvula','densidad','tFluido','npshd','sello','ruido'].some(k=>datos[k]!==undefined) || datos.obs;
+  if(!hayDato){ toast('Cargá al menos un dato o una observación.', 'error'); return; }
+  enviarCaptura('bomba_pro', tag, datos, `Lectura de ${tag}`).then(res=>{ if(res.ok) limpiarFormulario('bombas'); });
+}
+
 function limpiarFormulario(cual){
   document.querySelectorAll(`#view-${cual} input[type=text], #view-${cual} input[type=number], #view-${cual} textarea`).forEach(el=>el.value='');
   document.querySelectorAll(`#view-${cual} input[type=date]`).forEach(el=>el.value=hoy());
   if(cual==='motor'){ document.getElementById('mo_hilos').value='3'; toggleMotorHilos(); document.getElementById('mo_vEnsayo').value='500'; document.getElementById('mo_sistema').value='Trifásico'; toggleMotorSistema(); vEnsayoHubTouched=false; document.getElementById('mo_vEnsayoHint').textContent=''; }
   if(cual==='alineacion'){ document.getElementById('al_semaforo').value='verde'; document.getElementById('al_pataDetectada').value='no'; }
   if(cual==='refrigeracion'){ document.getElementById('rf_filtro').value=''; }
+  if(cual==='bombas'){ document.getElementById('bo_fecha').value = nowLocalHub(); document.getElementById('bo_ruido').value=''; actualizarSelloHub(); }
 }
 
 // ═══════════ init ═══════════
@@ -908,6 +1035,8 @@ async function importEquiposRows(rows, status){
 
 ['mo_fecha','al_fecha','ta_fecha','rf_fecha'].forEach(id=>document.getElementById(id).value = hoy());
 toggleMotorSistema();
+document.getElementById('bo_fecha').value = nowLocalHub();
+actualizarSelloHub();
 renderPendientes();
 actualizarEstadoConexion();
 if(SatSync.init()){ cargarEquipos(); }
