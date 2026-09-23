@@ -339,11 +339,19 @@ button.btn.small { padding:7px 12px; font-size:11px; }
         <div class="field-row"><label class="field-label">I T (A)</label><input type="number" step="0.1" id="ta_iT"></div>
       </div>
 
-      <div class="section-label">Tensiones</div>
+      <div class="section-label">Tensiones de línea (obligatorio)</div>
       <div class="field-grid3">
-        <div class="field-row"><label class="field-label">V R (V)</label><input type="number" step="0.1" id="ta_vR"></div>
-        <div class="field-row"><label class="field-label">V S (V)</label><input type="number" step="0.1" id="ta_vS"></div>
-        <div class="field-row"><label class="field-label">V T (V)</label><input type="number" step="0.1" id="ta_vT"></div>
+        <div class="field-row"><label class="field-label">R-S (V)</label><input type="number" step="0.1" id="ta_vRS"></div>
+        <div class="field-row"><label class="field-label">S-T (V)</label><input type="number" step="0.1" id="ta_vST"></div>
+        <div class="field-row"><label class="field-label">R-T (V)</label><input type="number" step="0.1" id="ta_vTR"></div>
+      </div>
+      <div class="card-note">Un técnico mide siempre entre fases. El desbalance NEMA MG-1 se calcula sobre estas tres.</div>
+
+      <div class="section-label">Tensiones fase-neutro (opcional, si hay neutro)</div>
+      <div class="field-grid3">
+        <div class="field-row"><label class="field-label">R-N (V)</label><input type="number" step="0.1" id="ta_vRN"></div>
+        <div class="field-row"><label class="field-label">S-N (V)</label><input type="number" step="0.1" id="ta_vSN"></div>
+        <div class="field-row"><label class="field-label">T-N (V)</label><input type="number" step="0.1" id="ta_vTN"></div>
       </div>
 
       <div class="section-label">Calidad de energía / aislación</div>
@@ -793,17 +801,32 @@ function guardarTablero(){
   const okRango = validarRangos([
     ['ta_tempAmb', -10, 60, 'Temp. ambiente', '°C'], ['ta_tempMax', -10, 200, 'Temp. máxima medida', '°C'],
     ['ta_iR', 0.01, 5000, 'I R', 'A'], ['ta_iS', 0.01, 5000, 'I S', 'A'], ['ta_iT', 0.01, 5000, 'I T', 'A'],
-    ['ta_vR', 0, 30000, 'V R', 'V'], ['ta_vS', 0, 30000, 'V S', 'V'], ['ta_vT', 0, 30000, 'V T', 'V'],
+    ['ta_vRS', 0, 30000, 'V R-S', 'V'], ['ta_vST', 0, 30000, 'V S-T', 'V'], ['ta_vTR', 0, 30000, 'V R-T', 'V'],
+    ['ta_vRN', 0, 30000, 'V R-N', 'V'], ['ta_vSN', 0, 30000, 'V S-N', 'V'], ['ta_vTN', 0, 30000, 'V T-N', 'V'],
     ['ta_fp', 0, 1, 'Factor de potencia'], ['ta_thdV', 0, 100, 'THD tensión', '%'], ['ta_rAisl', 0.01, 100000, 'R aislación', 'MΩ']
   ]);
   if(!okRango) return;
+
+  const vRS = numOrUndef('ta_vRS'), vST = numOrUndef('ta_vST'), vTR = numOrUndef('ta_vTR');
+  const vRN = numOrUndef('ta_vRN'), vSN = numOrUndef('ta_vSN'), vTN = numOrUndef('ta_vTN');
+
+  // Chequeo cruzado √3: en sistema balanceado V_RS ≈ √3 × V_RN.
+  // Si la relación se aleja >15% avisamos sin bloquear — puede ser neutro
+  // flojo, carga monofásica concentrada o simplemente un error de tipeo.
+  if (vRS && vRN){
+    const ratio = vRS / vRN;
+    if (Math.abs(ratio - 1.732) / 1.732 > 0.15){
+      if (!confirm(`La relación V_RS / V_RN = ${ratio.toFixed(3)} se aleja del esperado ≈1.732 (>15%). ¿Confirmás que las tensiones cargadas son correctas?`)) return;
+    }
+  }
+
   const datos = {
     fecha: document.getElementById('ta_fecha').value || hoy(),
     faseMax: document.getElementById('ta_faseMax').value,
     tempAmb: numOrUndef('ta_tempAmb'), tempMax: numOrUndef('ta_tempMax'),
-    iR:numOrUndef('ta_iR'), iS:numOrUndef('ta_iS'), iT:numOrUndef('ta_iT'),
-    vR:numOrUndef('ta_vR'), vS:numOrUndef('ta_vS'), vT:numOrUndef('ta_vT'),
-    fp:numOrUndef('ta_fp'), thdV:numOrUndef('ta_thdV'), rAisl:numOrUndef('ta_rAisl'),
+    iR: numOrUndef('ta_iR'), iS: numOrUndef('ta_iS'), iT: numOrUndef('ta_iT'),
+    vRS, vST, vTR, vRN, vSN, vTN,
+    fp: numOrUndef('ta_fp'), thdV: numOrUndef('ta_thdV'), rAisl: numOrUndef('ta_rAisl'),
     obs: txt('ta_obs')
   };
   enviarCaptura('tablero_pro', tag, datos, `Medición de ${tag}`).then(res=>{ if(res.ok) limpiarFormulario('tablero'); });
