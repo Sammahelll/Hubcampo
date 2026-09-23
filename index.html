@@ -404,11 +404,19 @@ button.btn.small { padding:7px 12px; font-size:11px; }
         <div class="field-row"><label class="field-label">I T (A)</label><input type="number" step="0.1" id="rf_iT"></div>
       </div>
 
-      <div class="section-label">Tensiones</div>
+      <div class="section-label">Tensiones de línea (obligatorio)</div>
       <div class="field-grid3">
-        <div class="field-row"><label class="field-label">V R (V)</label><input type="number" step="0.1" id="rf_vR"></div>
-        <div class="field-row"><label class="field-label">V S (V)</label><input type="number" step="0.1" id="rf_vS"></div>
-        <div class="field-row"><label class="field-label">V T (V)</label><input type="number" step="0.1" id="rf_vT"></div>
+        <div class="field-row"><label class="field-label">R-S (V)</label><input type="number" step="0.1" id="rf_vRS"></div>
+        <div class="field-row"><label class="field-label">S-T (V)</label><input type="number" step="0.1" id="rf_vST"></div>
+        <div class="field-row"><label class="field-label">R-T (V)</label><input type="number" step="0.1" id="rf_vTR"></div>
+      </div>
+      <div class="card-note">Un técnico mide siempre entre fases. El desbalance NEMA MG-1 se calcula sobre estas tres.</div>
+
+      <div class="section-label">Tensiones fase-neutro (opcional, si hay neutro)</div>
+      <div class="field-grid3">
+        <div class="field-row"><label class="field-label">R-N (V)</label><input type="number" step="0.1" id="rf_vRN"></div>
+        <div class="field-row"><label class="field-label">S-N (V)</label><input type="number" step="0.1" id="rf_vSN"></div>
+        <div class="field-row"><label class="field-label">T-N (V)</label><input type="number" step="0.1" id="rf_vTN"></div>
       </div>
 
       <div class="section-label">Aire y filtro</div>
@@ -838,16 +846,31 @@ function guardarRefrigeracion(){
     ['rf_tempEntrada', -20, 60, 'Temp. entrada de aire', '°C'], ['rf_tempSalida', -20, 60, 'Temp. salida de aire', '°C'], ['rf_tempAmb', -20, 60, 'Temp. ambiente climatizado', '°C'],
     ['rf_presAlta', 0, 50, 'Presión alta', 'bar'], ['rf_presBaja', 0, 50, 'Presión baja', 'bar'],
     ['rf_iR', 0.01, 5000, 'I R', 'A'], ['rf_iS', 0.01, 5000, 'I S', 'A'], ['rf_iT', 0.01, 5000, 'I T', 'A'],
-    ['rf_vR', 0, 30000, 'V R', 'V'], ['rf_vS', 0, 30000, 'V S', 'V'], ['rf_vT', 0, 30000, 'V T', 'V'],
+    ['rf_vRS', 0, 30000, 'V R-S', 'V'], ['rf_vST', 0, 30000, 'V S-T', 'V'], ['rf_vTR', 0, 30000, 'V R-T', 'V'],
+    ['rf_vRN', 0, 30000, 'V R-N', 'V'], ['rf_vSN', 0, 30000, 'V S-N', 'V'], ['rf_vTN', 0, 30000, 'V T-N', 'V'],
     ['rf_velAire', 0, 50, 'Velocidad de aire', 'm/s']
   ]);
   if(!okRango) return;
+
+  const vRS = numOrUndef('rf_vRS'), vST = numOrUndef('rf_vST'), vTR = numOrUndef('rf_vTR');
+  const vRN = numOrUndef('rf_vRN'), vSN = numOrUndef('rf_vSN'), vTN = numOrUndef('rf_vTN');
+
+  // Chequeo cruzado √3: en sistema balanceado V_RS ≈ √3 × V_RN.
+  // Si la relación se aleja >15% avisamos sin bloquear — puede ser neutro
+  // flojo, carga monofásica concentrada o simplemente un error de tipeo.
+  if (vRS && vRN){
+    const ratio = vRS / vRN;
+    if (Math.abs(ratio - 1.732) / 1.732 > 0.15){
+      if (!confirm(`La relación V_RS / V_RN = ${ratio.toFixed(3)} se aleja del esperado ≈1.732 (>15%). ¿Confirmás que las tensiones cargadas son correctas?`)) return;
+    }
+  }
+
   const datos = {
     fecha: document.getElementById('rf_fecha').value || hoy(),
     tempEntrada: numOrUndef('rf_tempEntrada'), tempSalida: numOrUndef('rf_tempSalida'), tempAmb: numOrUndef('rf_tempAmb'),
     presAlta: numOrUndef('rf_presAlta'), presBaja: numOrUndef('rf_presBaja'),
     iR: numOrUndef('rf_iR'), iS: numOrUndef('rf_iS'), iT: numOrUndef('rf_iT'),
-    vR: numOrUndef('rf_vR'), vS: numOrUndef('rf_vS'), vT: numOrUndef('rf_vT'),
+    vRS, vST, vTR, vRN, vSN, vTN,
     velAire: numOrUndef('rf_velAire'), filtro: document.getElementById('rf_filtro').value,
     obs: txt('rf_obs')
   };
