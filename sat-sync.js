@@ -467,8 +467,9 @@
     return s;
   }
 
-  // ⚠️ Los nombres de hoja acá deben coincidir EXACTAMENTE con HOJA_POR_TIPO
-  // del index.html. Si agregás un tipo nuevo, actualizá ambos lugares.
+  // Fuente de verdad de los nombres de hoja: el hub deriva HOJA_POR_TIPO de
+  // SatSync.HOJAS_SPECS_MAP. Para un tipo nuevo: agregá la línea acá y su
+  // *_FIELDS + entrada en TIPOS_ESPEC del index.html.
   const HOJAS_SPECS_MAP = {
     'MOTORES':         'motor',
     'BOMBAS':          'bomba',
@@ -477,6 +478,19 @@
     'TABLEROS':        'tablero',
     'REFRIGERACION':   'refrigeracion',
     'GRUAS_ELEVACION': 'grua',
+    // ── tipos ampliados (fichas para futuras apps) ──
+    "TANQUES_RECIPIENTES":     "tanque_recipiente",
+    "INTERCAMBIADORES":        "intercambiador",
+    "REACTORES":               "reactor",
+    "TORRES_COLUMNAS":         "torre_columna",
+    "FILTROS_TAMICES":         "filtro_tamiz",
+    "VALVULAS_SELLOS":         "valvula_sello",
+    "CALDERAS":                "caldera",
+    "AGITADORES_MEZCLADORES":  "agitador_mezclador",
+    "EQUIPOS_ELECTRICOS":      "equipo_electrico",
+    "EQUIPOS_MOVILES":         "equipo_movil",
+    "SECADORES_PLANTAS":       "secador_planta",
+    "INSTRUMENTACION":         "instrumento",
   };
 
   // ══════════════════════════════════════════════════════════════════════
@@ -645,6 +659,8 @@
 
     // ── NUEVAS: import multi-hoja, borrado de specs y validación post-import ──
     importarPlantillaEquipos,
+    // el hub deriva de acá los nombres de hoja de la plantilla (una sola fuente de verdad)
+    HOJAS_SPECS_MAP,
     borrarSpec,
     validarEquipos,
 
