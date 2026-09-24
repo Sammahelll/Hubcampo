@@ -126,6 +126,7 @@ button.btn.small { padding:7px 12px; font-size:11px; }
   <button class="tab-btn" data-tab="tablero">🧯 Tableros</button>
   <button class="tab-btn" data-tab="refrigeracion">❄️ Refrigeración</button>
   <button class="tab-btn" data-tab="bombas">💧 Bombas</button>
+  <button class="tab-btn" data-tab="compresores">🌀 Compresores</button>
   <button class="tab-btn" data-tab="equipos">📋 Equipos</button>
 </nav>
 </div>
@@ -505,6 +506,105 @@ button.btn.small { padding:7px 12px; font-size:11px; }
     </div>
   </section>
 
+  <!-- ═══════════ COMPRESORES ═══════════ -->
+  <section class="view" id="view-compresores">
+    <div class="card">
+      <div class="card-title">Equipo</div>
+      <div class="field-row">
+        <label class="field-label">TAG del compresor</label>
+        <input type="text" id="co_tag" list="listaEquipos" placeholder="Ej: U1050A" autocomplete="off">
+      </div>
+      <div class="card-note">Elegí uno existente de la lista o escribí un TAG nuevo — se crea solo al guardar. La ficha (marca, FLA, refrigerante) se completa en Compresor Pro.</div>
+    </div>
+
+    <div class="card">
+      <div class="card-title">Lectura</div>
+      <div class="field-grid2">
+        <div class="field-row"><label class="field-label">Fecha y hora</label><input type="datetime-local" id="co_fecha"></div>
+        <div class="field-row"><label class="field-label">Tipo</label>
+          <select id="co_tipo" onchange="toggleCompresorCampos()">
+            <option value="tornillo">⚙️ Tornillo</option>
+            <option value="anillo">💧 Anillo líquido</option>
+            <option value="reciprocante">🔩 Reciprocante</option>
+          </select>
+        </div>
+      </div>
+
+      <!-- TORNILLO -->
+      <div id="co_campos_tornillo">
+        <div class="section-label">Operación</div>
+        <div class="field-grid2">
+          <div class="field-row"><label class="field-label">Presión de descarga (bar)</label><input type="number" step="0.1" id="co_P_desc_t"></div>
+          <div class="field-row"><label class="field-label">Temp. de descarga (°C)</label><input type="number" step="0.1" id="co_T_desc_t"></div>
+          <div class="field-row"><label class="field-label">Temp. inyección de aceite (°C)</label><input type="number" step="0.1" id="co_T_inyeccion"></div>
+          <div class="field-row"><label class="field-label">Presión de aceite (bar)</label><input type="number" step="0.1" id="co_P_aceite_t"></div>
+          <div class="field-row"><label class="field-label">Corriente del motor (A)</label><input type="number" step="0.1" id="co_I_motor_t"></div>
+          <div class="field-row"><label class="field-label">Temp. ambiente (°C)</label><input type="number" step="0.1" id="co_T_amb"></div>
+        </div>
+        <details style="margin-top:10px;">
+          <summary class="field-label" style="cursor:pointer;">ΔP filtros (si hay manómetros diferenciales)</summary>
+          <div class="field-grid3" style="margin-top:10px;">
+            <div class="field-row"><label class="field-label">ΔP separador (bar)</label><input type="number" step="0.01" id="co_dP_sep"></div>
+            <div class="field-row"><label class="field-label">ΔP filtro aire (bar)</label><input type="number" step="0.01" id="co_dP_filAire"></div>
+            <div class="field-row"><label class="field-label">ΔP filtro aceite (bar)</label><input type="number" step="0.01" id="co_dP_filAceite"></div>
+          </div>
+        </details>
+      </div>
+
+      <!-- ANILLO LÍQUIDO -->
+      <div id="co_campos_anillo" class="hidden">
+        <div class="section-label">Lado cloro</div>
+        <div class="field-grid2">
+          <div class="field-row"><label class="field-label">Presión de succión (bar)</label><input type="number" step="0.01" id="co_P_succ_a"></div>
+          <div class="field-row"><label class="field-label">Presión de descarga (bar)</label><input type="number" step="0.01" id="co_P_desc_a"></div>
+          <div class="field-row"><label class="field-label">Temp. descarga del cloro (°C)</label><input type="number" step="0.1" id="co_T_desc_a"></div>
+          <div class="field-row"><label class="field-label">Corriente del motor (A)</label><input type="number" step="0.1" id="co_I_motor_a"></div>
+        </div>
+        <div class="section-label">Lado ácido</div>
+        <div class="field-grid2">
+          <div class="field-row"><label class="field-label">Temp. ácido a la entrada (°C)</label><input type="number" step="0.1" id="co_T_acido_in"></div>
+          <div class="field-row"><label class="field-label">Temp. ácido a la salida (°C)</label><input type="number" step="0.1" id="co_T_acido_out"></div>
+          <div class="field-row"><label class="field-label">Concentración H₂SO₄ (%)</label><input type="number" step="0.1" id="co_Conc_H2SO4"></div>
+          <div class="field-row"><label class="field-label">Caudal de ácido (m³/h)</label><input type="number" step="0.1" id="co_Caudal_acido"></div>
+        </div>
+      </div>
+
+      <!-- RECIPROCANTE -->
+      <div id="co_campos_reciprocante" class="hidden">
+        <div class="section-label">Lado refrigerante</div>
+        <div class="field-grid2">
+          <div class="field-row"><label class="field-label">Presión de succión (bar)</label><input type="number" step="0.01" id="co_P_succ_r"></div>
+          <div class="field-row"><label class="field-label">Temp. de succión (°C)</label><input type="number" step="0.1" id="co_T_succ"></div>
+          <div class="field-row"><label class="field-label">Presión de descarga (bar)</label><input type="number" step="0.01" id="co_P_desc_r"></div>
+          <div class="field-row"><label class="field-label">Temp. de descarga (°C)</label><input type="number" step="0.1" id="co_T_desc_r"></div>
+          <div class="field-row"><label class="field-label">Temp. de aceite en cárter (°C)</label><input type="number" step="0.1" id="co_T_aceite"></div>
+          <div class="field-row"><label class="field-label">Presión de aceite (kg/cm²)</label><input type="number" step="0.01" id="co_P_aceite_r"></div>
+          <div class="field-row"><label class="field-label">Corriente del motor (A)</label><input type="number" step="0.1" id="co_I_motor_r"></div>
+          <div class="field-row"><label class="field-label">Nivel de aceite (mirilla)</label>
+            <select id="co_NivelAceite">
+              <option value="">—</option>
+              <option value="ok">OK (entre ¼ y ¾)</option>
+              <option value="bajo">Bajo (&lt; ¼)</option>
+              <option value="alto">Alto (&gt; ¾)</option>
+            </select>
+          </div>
+        </div>
+      </div>
+
+      <div class="section-label">Standby</div>
+      <div class="field-row">
+        <label class="field-label">Días sin arranque (si aplica)</label>
+        <input type="number" step="1" id="co_Dias_parado" placeholder="Solo si el equipo estuvo parado">
+        <div class="card-note">Si estuvo rotando normalmente, dejalo vacío.</div>
+      </div>
+
+      <div class="field-row" style="margin-top:10px;"><label class="field-label">Observaciones</label><textarea id="co_obs" placeholder="Ruido, vibración, olor, fugas visibles…"></textarea></div>
+
+      <button class="btn primary big" onclick="guardarCompresor()">☁️ Guardar lectura</button>
+      <div class="card-note" style="margin-top:8px;">Se sube cruda — el diagnóstico (T descarga, SH, concentración, severidad) lo calcula Compresor Pro al traer la captura.</div>
+    </div>
+  </section>
+
   <!-- ═══════════ EQUIPOS (catálogo compartido) ═══════════ -->
   <section class="view" id="view-equipos">
     <div class="card">
@@ -712,7 +812,7 @@ function renderPendientes(){
       </div>
     </div>`).join('');
 }
-function nombreModulo(m){ return {motor_pro:'Motor', alineacion:'Alineación', tablero_pro:'Tablero', refrigeracion:'Refrigeración', bomba_pro:'Bomba'}[m] || m; }
+function nombreModulo(m){ return {motor_pro:'Motor', alineacion:'Alineación', tablero_pro:'Tablero', refrigeracion:'Refrigeración', bomba_pro:'Bomba', compresor_pro:'Compresor'}[m] || m; }
 function eliminarPendiente(i){
   if(!confirm('¿Descartar esta captura pendiente? No se va a poder recuperar.')) return;
   pendientes.splice(i,1);
@@ -931,6 +1031,100 @@ function guardarBombas(){
   enviarCaptura('bomba_pro', tag, datos, `Lectura de ${tag}`).then(res=>{ if(res.ok) limpiarFormulario('bombas'); });
 }
 
+// ═══════════ COMPRESORES ═══════════
+function toggleCompresorCampos(){
+  const tipo = document.getElementById('co_tipo').value;
+  document.getElementById('co_campos_tornillo').classList.toggle('hidden', tipo !== 'tornillo');
+  document.getElementById('co_campos_anillo').classList.toggle('hidden', tipo !== 'anillo');
+  document.getElementById('co_campos_reciprocante').classList.toggle('hidden', tipo !== 'reciprocante');
+}
+
+function guardarCompresor(){
+  const tag = txt('co_tag');
+  const tipo = document.getElementById('co_tipo').value;
+
+  // Validación de rangos físicos por tipo — mismo criterio que Motor/Tablero,
+  // no reemplaza el diagnóstico de Compresor Pro pero atrapa typos obvios
+  // antes de mandar el dato crudo a la nube.
+  const rangos = [
+    ['co_Dias_parado', 0, 3650, 'Días sin arranque']
+  ];
+  if(tipo === 'tornillo'){
+    rangos.push(
+      ['co_P_desc_t', 0, 50, 'Presión descarga', 'bar'],
+      ['co_T_desc_t', -20, 200, 'Temp. descarga', '°C'],
+      ['co_T_inyeccion', -20, 200, 'Temp. inyección', '°C'],
+      ['co_P_aceite_t', 0, 50, 'Presión aceite', 'bar'],
+      ['co_I_motor_t', 0.01, 5000, 'Corriente motor', 'A'],
+      ['co_T_amb', -20, 60, 'Temp. ambiente', '°C'],
+      ['co_dP_sep', 0, 10, 'ΔP separador', 'bar'],
+      ['co_dP_filAire', 0, 10, 'ΔP filtro aire', 'bar'],
+      ['co_dP_filAceite', 0, 10, 'ΔP filtro aceite', 'bar']
+    );
+  } else if(tipo === 'anillo'){
+    rangos.push(
+      ['co_P_succ_a', 0, 50, 'Presión succión', 'bar'],
+      ['co_P_desc_a', 0, 50, 'Presión descarga', 'bar'],
+      ['co_T_desc_a', -20, 200, 'Temp. descarga cloro', '°C'],
+      ['co_I_motor_a', 0.01, 5000, 'Corriente motor', 'A'],
+      ['co_T_acido_in', -20, 150, 'Temp. ácido in', '°C'],
+      ['co_T_acido_out', -20, 150, 'Temp. ácido out', '°C'],
+      ['co_Conc_H2SO4', 50, 100, 'Concentración H₂SO₄', '%'],
+      ['co_Caudal_acido', 0, 500, 'Caudal ácido', 'm³/h']
+    );
+  } else {
+    rangos.push(
+      ['co_P_succ_r', 0, 50, 'Presión succión', 'bar'],
+      ['co_T_succ', -40, 100, 'Temp. succión', '°C'],
+      ['co_P_desc_r', 0, 50, 'Presión descarga', 'bar'],
+      ['co_T_desc_r', -20, 200, 'Temp. descarga', '°C'],
+      ['co_T_aceite', -20, 150, 'Temp. aceite', '°C'],
+      ['co_P_aceite_r', 0, 50, 'Presión aceite', 'kg/cm²'],
+      ['co_I_motor_r', 0.01, 5000, 'Corriente motor', 'A']
+    );
+  }
+  if(!validarRangos(rangos)) return;
+
+  const datos = { fecha: document.getElementById('co_fecha').value || nowLocalHub(), tipoComp: tipo };
+
+  if(tipo === 'tornillo'){
+    datos.P_desc = numOrUndef('co_P_desc_t');
+    datos.T_desc = numOrUndef('co_T_desc_t');
+    datos.T_inyeccion = numOrUndef('co_T_inyeccion');
+    datos.P_aceite = numOrUndef('co_P_aceite_t');
+    datos.I_motor = numOrUndef('co_I_motor_t');
+    datos.T_amb = numOrUndef('co_T_amb');
+    datos.dP_sep = numOrUndef('co_dP_sep');
+    datos.dP_filAire = numOrUndef('co_dP_filAire');
+    datos.dP_filAceite = numOrUndef('co_dP_filAceite');
+  } else if(tipo === 'anillo'){
+    datos.P_succ = numOrUndef('co_P_succ_a');
+    datos.P_desc = numOrUndef('co_P_desc_a');
+    datos.T_desc = numOrUndef('co_T_desc_a');
+    datos.I_motor = numOrUndef('co_I_motor_a');
+    datos.T_acido_in = numOrUndef('co_T_acido_in');
+    datos.T_acido_out = numOrUndef('co_T_acido_out');
+    datos.Conc_H2SO4 = numOrUndef('co_Conc_H2SO4');
+    datos.Caudal_acido = numOrUndef('co_Caudal_acido');
+  } else {
+    datos.P_succ = numOrUndef('co_P_succ_r');
+    datos.T_succ = numOrUndef('co_T_succ');
+    datos.P_desc = numOrUndef('co_P_desc_r');
+    datos.T_desc = numOrUndef('co_T_desc_r');
+    datos.T_aceite = numOrUndef('co_T_aceite');
+    datos.P_aceite = numOrUndef('co_P_aceite_r');
+    datos.I_motor = numOrUndef('co_I_motor_r');
+    datos.NivelAceite = document.getElementById('co_NivelAceite').value || undefined;
+  }
+  datos.Dias_parado = numOrUndef('co_Dias_parado');
+  datos.obs = txt('co_obs');
+
+  const hayDato = Object.keys(datos).some(k => k !== 'fecha' && k !== 'tipoComp' && datos[k] !== undefined && datos[k] !== '');
+  if(!hayDato){ toast('Cargá al menos un dato o una observación.', 'error'); return; }
+
+  enviarCaptura('compresor_pro', tag, datos, `Lectura de ${tag}`).then(res=>{ if(res.ok) limpiarFormulario('compresores'); });
+}
+
 function limpiarFormulario(cual){
   document.querySelectorAll(`#view-${cual} input[type=text], #view-${cual} input[type=number], #view-${cual} textarea`).forEach(el=>el.value='');
   document.querySelectorAll(`#view-${cual} input[type=date]`).forEach(el=>el.value=hoy());
@@ -938,6 +1132,12 @@ function limpiarFormulario(cual){
   if(cual==='alineacion'){ document.getElementById('al_semaforo').value='verde'; document.getElementById('al_pataDetectada').value='no'; }
   if(cual==='refrigeracion'){ document.getElementById('rf_filtro').value=''; }
   if(cual==='bombas'){ document.getElementById('bo_fecha').value = nowLocalHub(); document.getElementById('bo_ruido').value=''; actualizarSelloHub(); }
+  if(cual==='compresores'){
+    document.getElementById('co_fecha').value = nowLocalHub();
+    document.getElementById('co_tipo').value = 'tornillo';
+    document.getElementById('co_NivelAceite').value = '';
+    toggleCompresorCampos();
+  }
 }
 
 // ═══════════ init ═══════════
@@ -1082,6 +1282,8 @@ async function importEquiposRows(rows, status){
 ['mo_fecha','al_fecha','ta_fecha','rf_fecha'].forEach(id=>document.getElementById(id).value = hoy());
 toggleMotorSistema();
 document.getElementById('bo_fecha').value = nowLocalHub();
+document.getElementById('co_fecha').value = nowLocalHub();
+toggleCompresorCampos();
 actualizarSelloHub();
 renderPendientes();
 actualizarEstadoConexion();
