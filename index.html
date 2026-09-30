@@ -647,7 +647,10 @@ function toast(msg, type){
   wrap.appendChild(el);
   setTimeout(()=>el.remove(), 3200);
 }
-function hoy(){ return new Date().toISOString().slice(0,10); }
+// Fecha LOCAL (antes toISOString() daba la fecha UTC: desde las 21:00 en Paraguay ya marcaba el día siguiente)
+function hoy(){ const d=new Date(); d.setMinutes(d.getMinutes()-d.getTimezoneOffset()); return d.toISOString().slice(0,10); }
+// Escape HTML para datos que vienen de la nube / Excel y se inyectan vía innerHTML
+function esc(s){ return String(s==null?'':s).replace(/[&<>"']/g,c=>({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;',"'":'&#39;'}[c])); }
 function numOrUndef(id){ const v = parseFloat(document.getElementById(id).value); return isNaN(v) ? undefined : v; }
 function txt(id){ return document.getElementById(id).value.trim(); }
 
@@ -805,7 +808,7 @@ function renderPendientes(){
     <div class="pend-item">
       <div class="pend-head">
         <div>
-          <div class="pend-name">${p.equipo_tag} · ${nombreModulo(p.modulo)}</div>
+          <div class="pend-name">${esc(p.equipo_tag)} · ${nombreModulo(p.modulo)}</div>
           <div class="pend-meta">${new Date(p.ts).toLocaleString()}</div>
         </div>
         <button class="pend-del" onclick="eliminarPendiente(${i})" title="Descartar">✕</button>
@@ -819,7 +822,13 @@ function eliminarPendiente(i){
   localStorage.setItem(PEND_KEY, JSON.stringify(pendientes));
   renderPendientes();
 }
+let reintentando = false; // evita envíos duplicados si load + evento 'online' disparan a la vez
 async function reintentarEnvios(){
+  if(reintentando || !pendientes.length) return;
+  reintentando = true;
+  try{ await _reintentarEnvios(); } finally { reintentando = false; }
+}
+async function _reintentarEnvios(){
   if(!pendientes.length) return;
   if(typeof SatSync === 'undefined' || !SatSync.init()){ toast('Seguís sin conexión.', 'error'); return; }
   let ok=0, fail=0;
@@ -1148,11 +1157,11 @@ function actualizarEstadoConexion(){
 }
 function renderListaEquipos(){
   const tagsRemotos = new Set(equiposCache.map(e=>e.tag));
-  const opciones = equiposCache.map(e=>`<option value="${e.tag}">${e.nombre||''}</option>`);
+  const opciones = equiposCache.map(e=>`<option value="${esc(e.tag)}">${esc(e.nombre)}</option>`);
   // agrega tags de pendientes locales que todavía no están en el catálogo remoto
   // (útil offline o antes de la primera sincronización)
   new Set(pendientes.map(p=>p.equipo_tag)).forEach(tag=>{
-    if(tag && !tagsRemotos.has(tag)) opciones.push(`<option value="${tag}"></option>`);
+    if(tag && !tagsRemotos.has(tag)) opciones.push(`<option value="${esc(tag)}"></option>`);
   });
   document.getElementById('listaEquipos').innerHTML = opciones.join('');
   const countEl = document.getElementById('equiposCount');
@@ -1287,12 +1296,12 @@ toggleCompresorCampos();
 actualizarSelloHub();
 renderPendientes();
 actualizarEstadoConexion();
-if(SatSync.init()){ cargarEquipos(); }
+if(typeof SatSync !== 'undefined' && SatSync.init()){ cargarEquipos(); }
 if(navigator.onLine) reintentarEnvios();
 window.addEventListener('online', async ()=>{
   const yaConectado = typeof SatSync !== 'undefined' && SatSync.estaConfigurado();
   actualizarEstadoConexion();
-  if(!yaConectado && SatSync.init()){
+  if(!yaConectado && typeof SatSync !== 'undefined' && SatSync.init()){
     toast('☁️ Conexión restablecida.', 'success');
     actualizarEstadoConexion();
     await cargarEquipos();

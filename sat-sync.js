@@ -48,6 +48,9 @@
   }
 
   function init(url, anonKey) {
+    // Reutilizar el cliente ya creado: cada init() nuevo instanciaba otro createClient
+    // (advertencia "Multiple GoTrueClient instances") y se llama en cada envío.
+    if (client && !(url && anonKey)) return true;
     const cfg = (url && anonKey) ? { url, anonKey } : (leerConfig() || CFG_DEFAULT);
     if (!cfg || !cfg.url || !cfg.anonKey) {
       console.warn('[SatSync] Sin configuración de Supabase. Llamá a SatSync.init(url, anonKey) o configurá desde el hub.');
@@ -120,37 +123,6 @@
       .select().single();
     if (error) throw error;
     return data;
-  }
-
-  // Borrado DEFINITIVO (no es lo mismo que archivar): borra el equipo y todo
-  // lo que cuelga de él — mediciones, análisis, capturas de campo pendientes
-  // y fichas técnicas. Es irreversible, por eso el hub exige que el usuario
-  // escriba el TAG exacto antes de habilitar el botón.
-  // Borra en orden (hijos antes que el padre) para no depender de que la
-  // base tenga configurado ON DELETE CASCADE en las foreign keys.
-  async function borrarEquipoDefinitivo(equipoId) {
-    if (!client) throw new Error('[SatSync] no inicializado — llamá a SatSync.init() primero');
-
-    const { error: eMed } = await client.from('mediciones').delete().eq('equipo_id', equipoId);
-    if (eMed) throw eMed;
-
-    const { error: eAna } = await client.from('analisis').delete().eq('equipo_id', equipoId);
-    if (eAna) throw eAna;
-
-    const { error: eCap } = await client.from('capturas_campo').delete().eq('equipo_id', equipoId);
-    if (eCap) throw eCap;
-
-    // equipos_specs puede no existir todavía (migración pendiente) — no
-    // bloquea el borrado del resto si esa tabla falta.
-    try {
-      const { error: eSpec } = await client.from('equipos_specs').delete().eq('equipo_id', equipoId);
-      if (eSpec) throw eSpec;
-    } catch (err) {
-      if (!(err && (err.code === '42P01' || /equipos_specs/.test(err.message || '')))) throw err;
-    }
-
-    const { error: eEq } = await client.from('equipos').delete().eq('id', equipoId);
-    if (eEq) throw eEq;
   }
 
   async function buscarOCrearEquipo(tag, extra = {}) {
@@ -412,63 +384,6 @@
     const specs = {};
     (data || []).forEach(s => { specs[s.tipo_espec] = s.spec_data; });
     return specs; // { motor: {...}, bomba: {...} }
-  }
-
-  // Duplica un equipo (ficha general + fichas técnicas) con un TAG nuevo.
-  // Pensado para plantas con muchos equipos idénticos que solo difieren en
-  // el TAG (p. ej. 12 motores de la misma línea): evita recargar a mano
-  // marca/modelo/criticidad/RPM/potencia/etc. para cada uno.
-  // No copia: N° de serie (es único por unidad física) ni el historial de
-  // análisis/mediciones (esos arrancan de cero para el equipo nuevo).
-  async function duplicarEquipo(equipoIdOrigen, tagNuevo) {
-    if (!client) throw new Error('[SatSync] no inicializado — llamá a SatSync.init() primero');
-    const tag = (tagNuevo || '').trim();
-    if (!tag) throw new Error('El TAG es obligatorio.');
-
-    const { data: origen, error: e1 } = await client.from('equipos').select('*').eq('id', equipoIdOrigen).maybeSingle();
-    if (e1) throw e1;
-    if (!origen) throw new Error('No se encontró el equipo a duplicar.');
-
-    const { data: existente, error: e2 } = await client.from('equipos').select('id').eq('tag', tag).maybeSingle();
-    if (e2) throw e2;
-    if (existente) throw new Error(`Ya existe un equipo con el TAG "${tag}".`);
-
-    const { data: nuevo, error: e3 } = await client.from('equipos').insert({
-      tag,
-      nombre: (!origen.nombre || origen.nombre === origen.tag) ? tag : origen.nombre,
-      tipo: origen.tipo || null,
-      ubicacion: origen.ubicacion || null,
-      marca: origen.marca || null,
-      modelo: origen.modelo || null,
-      serie: null,
-      estado: origen.estado || null,
-      notas: origen.notas || null,
-      criticidad: origen.criticidad || null,
-    }).select().single();
-    if (e3) throw e3;
-
-    // Fichas técnicas (equipos_specs): tabla hermana, no bloquea el alta del
-    // equipo si todavía no existe (falta migración) o si falla la copia —
-    // el llamador recibe el aviso en avisoSpecs para mostrarlo aparte.
-    let avisoSpecs = null;
-    try {
-      const { data: specs, error: e4 } = await client.from('equipos_specs')
-        .select('tipo_espec, spec_data').eq('equipo_id', equipoIdOrigen);
-      if (e4) throw e4;
-      if (specs && specs.length) {
-        const filas = specs.map(s => ({ equipo_id: nuevo.id, tipo_espec: s.tipo_espec, spec_data: s.spec_data }));
-        const { error: e5 } = await client.from('equipos_specs').upsert(filas, { onConflict: 'equipo_id,tipo_espec' });
-        if (e5) throw e5;
-      }
-    } catch (err) {
-      if (err && (err.code === '42P01' || /equipos_specs/.test(err.message || ''))) {
-        avisoSpecs = null; // tabla no existe: nada que copiar, no es un error real
-      } else {
-        avisoSpecs = 'El equipo se creó, pero no se pudieron copiar las fichas técnicas: ' + (err.message || err);
-      }
-    }
-
-    return { equipo: nuevo, avisoSpecs };
   }
 
   // Trae equipos + specs en una sola query (usa la vista equipos_full,
@@ -738,7 +653,7 @@
 
   global.SatSync = {
     init, estaConfigurado, guardarConfig, leerConfig,
-    listarEquipos, buscarOCrearEquipo, actualizarEquipo, archivarEquipo, duplicarEquipo, borrarEquipoDefinitivo,
+    listarEquipos, buscarOCrearEquipo, actualizarEquipo, archivarEquipo,
     guardarAnalisis, listarAnalisis, subirImagen,
     guardarCaptura, listarCapturasPendientes, marcarCapturaProcesada,
     buscarEquipoPorTag, guardarFichas, quitarModuloDeEquipo, renombrarEquipo,
