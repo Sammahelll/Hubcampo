@@ -259,6 +259,8 @@
   async function guardarFichas(modulo, lista, { noPisar = false } = {}) {
     if (!client) throw new Error('[SatSync] no inicializado — llamá a SatSync.init() primero');
     if (!lista.length) return [];
+    // TAGs repetidos en la lista rompían el insert (clave única): gana el último.
+    lista = [...new Map(lista.map(x => [x.tag, x])).values()];
     const ahora = new Date().toISOString();
     const existentes = [];
     const tags = lista.map(x => x.tag);
@@ -341,6 +343,11 @@
   // filas: [{equipo_id, fecha (ISO), datos, obs}] — upsert por (equipo_id, modulo, fecha)
   async function guardarMediciones(modulo, filas, autor) {
     if (!client) throw new Error('[SatSync] no inicializado — llamá a SatSync.init() primero');
+    // Postgres rechaza un upsert que toca dos veces la misma fila ("cannot affect row a second time"):
+    // si el lote trae (equipo_id, fecha) repetidos, gana la última.
+    const unicas = new Map();
+    for (const f of filas) unicas.set(f.equipo_id + '|' + f.fecha, f);
+    filas = [...unicas.values()];
     for (let i = 0; i < filas.length; i += 500) {
       const lote = filas.slice(i, i + 500).map(f => ({
         equipo_id: f.equipo_id, modulo, fecha: f.fecha, datos: f.datos || {}, obs: f.obs || null, autor: autor || null
@@ -467,6 +474,8 @@
     const s = String(v).trim();
     if (s === '' || s === '—' || s === '-') return null;
     if (/^-?\d+(\.\d+)?$/.test(s)) return parseFloat(s);
+    // Excel en español: "7,5" → 7.5 (solo si no hay punto, para no confundir miles "1.500")
+    if (/^-?\d+,\d+$/.test(s)) return parseFloat(s.replace(',', '.'));
     return s;
   }
 
@@ -513,6 +522,16 @@
     const tagToId = new Map();
     const stats = { equipos: 0, specs: 0, errores: [] };
 
+    // TAGs que ya existen: a esos NO se les pisa con vacíos ni con los defaults
+    // (criticidad 'C' / estado 'operativo'); a los nuevos sí se les aplican.
+    const tagsExistentes = new Set();
+    const tagsHoja = [...new Set(rowsEq.map(r => String(r['TAG'] || r['Tag'] || '').trim()).filter(Boolean))];
+    for (let j = 0; j < tagsHoja.length; j += 100) {
+      const { data: ex, error: eEx } = await client.from('equipos').select('tag').in('tag', tagsHoja.slice(j, j + 100));
+      if (eEx) throw eEx;
+      (ex || []).forEach(e => tagsExistentes.add(e.tag));
+    }
+
     // ── 1. EQUIPOS ─────────────────────────────────────────────────────
     for (let i = 0; i < rowsEq.length; i++) {
       const row = rowsEq[i];
@@ -545,6 +564,16 @@
         if (m1) core.fecha_puesta_marcha = `${m1[3]}-${m1[2].padStart(2,'0')}-${m1[1].padStart(2,'0')}`;
         else if (m2) core.fecha_puesta_marcha = `${m2[1]}-${m2[2]}-${m2[3]}`;
       }
+
+      // PostgREST solo actualiza las columnas presentes en el payload: sacar las vacías las preserva.
+      const existe = tagsExistentes.has(tag);
+      const tieneEstado = String(row['Estado'] || '').trim() !== '';
+      const tieneCrit   = String(row['Criticidad'] || '').trim() !== '';
+      for (const k of Object.keys(core)) { if (k !== 'tag' && (core[k] === null || core[k] === undefined)) delete core[k]; }
+      if (existe) {
+        if (!tieneEstado) delete core.estado;
+        if (!tieneCrit) delete core.criticidad;
+      } else if (!core.nombre) { core.nombre = tag; }
 
       try {
         const { data, error } = await client
@@ -580,9 +609,21 @@
         const specData = {};
         for (const [k, v] of Object.entries(row)) {
           if (k === 'TAG' || k === 'Tag') continue;
-          const parsed = parsearValorSpec(v);
+          let parsed = parsearValorSpec(v);
           if (parsed === null) continue;
-          specData[claveCanonica(k)] = parsed;
+          const clave = claveCanonica(k);
+          // RPM nunca lleva 3 decimales: "1.480" / "1,480" (texto) es mil cuatrocientos ochenta, no 1,48
+          if (clave === 'rpm' && typeof v === 'string' && /^\d{1,2}[.,]\d{3}$/.test(v.trim())) {
+            parsed = parseInt(v.trim().replace(/[.,]/, ''), 10);
+          }
+          // equipos_specs tiene columnas generadas (rpm_num, potencia_kw_num, corriente_a_num) que hacen
+          // (spec_data->>'clave')::numeric: un texto no numérico ("1480 RPM", "7,5 kW") hace fallar TODO el upsert.
+          if (['rpm', 'potencia_kw', 'corriente_a'].includes(clave) && typeof parsed === 'string') {
+            const mNum = parsed.match(/^-?\d+(?:[.,]\d+)?/);
+            if (!mNum) { stats.errores.push(`${nombreHoja} "${tag}": ${clave} "${parsed}" no es numérico, se omitió`); continue; }
+            parsed = parseFloat(mNum[0].replace(',', '.'));
+          }
+          specData[clave] = parsed;
         }
         if (Object.keys(specData).length === 0) continue;
 
@@ -651,6 +692,54 @@
     return avisos;
   }
 
+  // ---- Duplicar / borrar equipo (usadas por el hub de escritorio) ----
+  // Duplica el equipo con un TAG nuevo: copia las columnas del equipo (incluida
+  // la ficha por módulo) y sus specs. NO copia mediciones ni análisis (historial)
+  // ni el N° de serie (es de la unidad física). Devuelve { equipo, avisoSpecs }.
+  async function duplicarEquipo(equipoId, tagNuevo) {
+    if (!client) throw new Error('[SatSync] no inicializado — llamá a SatSync.init() primero');
+    tagNuevo = String(tagNuevo || '').trim();
+    if (!tagNuevo) throw new Error('El TAG nuevo es obligatorio');
+    const { data: origen, error: e0 } = await client.from('equipos').select('*').eq('id', equipoId).maybeSingle();
+    if (e0) throw e0;
+    if (!origen) throw new Error('El equipo original ya no existe');
+    const { data: yaExiste, error: e1 } = await client.from('equipos').select('id').eq('tag', tagNuevo).maybeSingle();
+    if (e1) throw e1;
+    if (yaExiste) throw new Error(`Ya existe un equipo con el TAG "${tagNuevo}"`);
+
+    const copia = { ...origen, tag: tagNuevo, serie: null, activo: true };
+    if (!origen.nombre || origen.nombre === origen.tag) copia.nombre = tagNuevo;
+    ['id', 'created_at', 'updated_at', 'creado_en'].forEach(c => delete copia[c]);
+    const { data: equipo, error: e2 } = await client.from('equipos').insert(copia).select().single();
+    if (e2) throw e2;
+
+    let avisoSpecs = null;
+    const { data: specs, error: e3 } = await client.from('equipos_specs')
+      .select('tipo_espec, spec_data').eq('equipo_id', equipoId);
+    if (e3) {
+      // 42P01: la tabla equipos_specs todavía no existe (no corrió schema-specs.sql)
+      if (e3.code !== '42P01') avisoSpecs = 'No se pudieron copiar las especificaciones: ' + e3.message;
+    } else if (specs && specs.length) {
+      const { error: e4 } = await client.from('equipos_specs')
+        .insert(specs.map(s => ({ equipo_id: equipo.id, tipo_espec: s.tipo_espec, spec_data: s.spec_data })));
+      if (e4) avisoSpecs = 'El equipo se creó pero no se copiaron las especificaciones: ' + e4.message;
+    }
+    return { equipo, avisoSpecs };
+  }
+
+  // Borrado DEFINITIVO: elimina primero los registros hijos (por si las FK no
+  // tienen ON DELETE CASCADE) y al final el equipo. Irreversible.
+  async function borrarEquipoDefinitivo(equipoId) {
+    if (!client) throw new Error('[SatSync] no inicializado — llamá a SatSync.init() primero');
+    for (const tabla of ['mediciones', 'analisis', 'capturas_campo', 'equipos_specs']) {
+      const { error } = await client.from(tabla).delete().eq('equipo_id', equipoId);
+      // 42P01 = tabla inexistente en este proyecto: no hay nada que borrar ahí
+      if (error && error.code !== '42P01') throw error;
+    }
+    const { error } = await client.from('equipos').delete().eq('id', equipoId);
+    if (error) throw error;
+  }
+
   global.SatSync = {
     init, estaConfigurado, guardarConfig, leerConfig,
     listarEquipos, buscarOCrearEquipo, actualizarEquipo, archivarEquipo,
@@ -666,6 +755,8 @@
     HOJAS_SPECS_MAP,
     borrarSpec,
     validarEquipos,
+    duplicarEquipo,
+    borrarEquipoDefinitivo,
 
     // helpers expuestos por si los tests los necesitan
     normalizarClave,

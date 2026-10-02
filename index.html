@@ -661,6 +661,10 @@ function txt(id){ return document.getElementById(id).value.trim(); }
 // de mandar el dato crudo a la nube.
 function validarRangos(reglas){
   for(const [id, min, max, etiqueta, unidad] of reglas){
+    const el = document.getElementById(id);
+    // Un campo oculto (p.ej. los de 6 hilos con el motor en 3 hilos) no se guarda: validarlo bloqueaba el
+    // guardado con un mensaje sobre un campo que el usuario no ve.
+    if(!el || el.offsetParent === null) continue;
     const v = numOrUndef(id);
     if(v === undefined) continue; // los campos vacíos son válidos (opcionales)
     if(v < min || v > max){
