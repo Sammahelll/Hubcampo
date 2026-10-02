@@ -1154,10 +1154,25 @@ function limpiarFormulario(cual){
 }
 
 // ═══════════ init ═══════════
-function actualizarEstadoConexion(){
-  const on = typeof SatSync !== 'undefined' && SatSync.estaConfigurado();
-  document.getElementById('connDot').className = 'dot ' + (on?'on':'off');
-  document.getElementById('connLabel').textContent = on ? 'conectado' : 'sin conectar';
+let connChequeoId = 0; // descarta respuestas viejas si se lanzan varios chequeos seguidos
+async function actualizarEstadoConexion(){
+  const dot = document.getElementById('connDot');
+  const label = document.getElementById('connLabel');
+  const miId = ++connChequeoId;
+  if(typeof SatSync === 'undefined' || !SatSync.estaConfigurado()){
+    dot.className = 'dot off'; label.textContent = 'sin conectar'; dot.title = 'Supabase no está inicializado';
+    return;
+  }
+  if(!navigator.onLine){
+    dot.className = 'dot off'; label.textContent = 'sin internet'; dot.title = 'El dispositivo está sin red';
+    return;
+  }
+  dot.className = 'dot'; label.textContent = 'verificando…'; dot.title = '';
+  const r = await SatSync.ping();
+  if(miId !== connChequeoId) return; // llegó un chequeo más nuevo
+  dot.className = 'dot ' + (r.ok ? 'on' : 'off');
+  label.textContent = r.ok ? 'conectado' : 'sin respuesta';
+  dot.title = r.ok ? '' : ('Supabase no respondió: ' + r.motivo);
 }
 function renderListaEquipos(){
   const tagsRemotos = new Set(equiposCache.map(e=>e.tag));
@@ -1299,8 +1314,8 @@ document.getElementById('co_fecha').value = nowLocalHub();
 toggleCompresorCampos();
 actualizarSelloHub();
 renderPendientes();
-actualizarEstadoConexion();
 if(typeof SatSync !== 'undefined' && SatSync.init()){ cargarEquipos(); }
+actualizarEstadoConexion(); // después de init(): antes se evaluaba con el cliente aún sin crear
 if(navigator.onLine) reintentarEnvios();
 window.addEventListener('online', async ()=>{
   const yaConectado = typeof SatSync !== 'undefined' && SatSync.estaConfigurado();
@@ -1313,6 +1328,8 @@ window.addEventListener('online', async ()=>{
   reintentarEnvios();
 });
 window.addEventListener('offline', actualizarEstadoConexion);
+setInterval(actualizarEstadoConexion, 30000); // revalida cada 30 s
+document.addEventListener('visibilitychange', ()=>{ if(!document.hidden) actualizarEstadoConexion(); });
 </script>
 </body>
 </html>
