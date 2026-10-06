@@ -101,6 +101,32 @@ button.btn.small { padding:7px 12px; font-size:11px; }
   main { padding:12px; }
   .card { padding:14px; }
 }
+
+/* ── Carga de equipo (ficha técnica desde campo) ── */
+.cg-item, .cg-nuevo { display:flex; flex-wrap:wrap; align-items:center; gap:4px 10px; width:100%; text-align:left; background:var(--bg2); border:1px solid var(--border); color:var(--text); border-radius:8px; padding:12px 14px; margin-top:8px; cursor:pointer; font-family:var(--font-body); font-size:14px; min-height:52px; transition:.15s; }
+.cg-item:hover, .cg-nuevo:hover { border-color:var(--accent); }
+.cg-item .cg-sub { flex:1 1 100%; order:3; font-size:12px; color:var(--text2); }
+.cg-tag { font-family:var(--font-mono); color:var(--accent); font-size:13px; }
+.cg-badge { margin-left:auto; font-family:var(--font-mono); font-size:10px; padding:2px 8px; border-radius:4px; }
+.cg-badge.ok { background:rgba(0,255,157,0.1); color:var(--accent3); }
+.cg-badge.sin { background:rgba(255,170,0,0.12); color:var(--warning); }
+.cg-nuevo { border-style:dashed; color:var(--accent); font-weight:600; }
+.cg-head { display:flex; align-items:center; gap:12px; margin-bottom:14px; }
+.cg-head .cg-tag { font-size:18px; font-weight:600; }
+.cg-chips { display:flex; gap:6px; overflow-x:auto; padding:2px 0 10px; -webkit-overflow-scrolling:touch; }
+.cg-chip { flex:0 0 auto; background:var(--bg2); border:1px solid var(--border); color:var(--text2); border-radius:20px; padding:9px 14px; font-family:var(--font-body); font-size:13px; cursor:pointer; white-space:nowrap; min-height:40px; }
+.cg-chip.active { border-color:var(--accent); color:var(--accent); background:rgba(0,212,255,0.08); }
+.cg-chip.has::after { content:''; display:inline-block; width:7px; height:7px; border-radius:50%; background:var(--accent3); margin-left:7px; }
+.cg-req { color:var(--warning); font-weight:700; }
+.cg-pane { display:none; }
+.cg-pane.show { display:block; }
+.cg-bar { position:sticky; bottom:0; display:flex; gap:10px; padding:14px 0 10px; background:linear-gradient(rgba(7,9,15,0), var(--bg) 35%); z-index:5; }
+.cg-bar .btn { min-height:48px; font-size:14px; }
+.cg-bar .primary { flex:1; }
+.cg-aviso { display:none; font-size:11.5px; color:var(--warning); margin-top:14px; padding:9px 11px; border:1px dashed var(--warning); border-radius:6px; }
+.cg-aviso.show { display:block; }
+.cg-check { display:flex; align-items:center; gap:8px; margin-top:10px; font-size:12.5px; color:var(--text2); cursor:pointer; }
+.cg-check input { width:18px; height:18px; }
 </style>
 </head>
 <body>
@@ -127,6 +153,7 @@ button.btn.small { padding:7px 12px; font-size:11px; }
   <button class="tab-btn" data-tab="refrigeracion">❄️ Refrigeración</button>
   <button class="tab-btn" data-tab="bombas">💧 Bombas</button>
   <button class="tab-btn" data-tab="compresores">🌀 Compresores</button>
+  <button class="tab-btn" data-tab="carga">📝 Carga</button>
   <button class="tab-btn" data-tab="equipos">📋 Equipos</button>
 </nav>
 </div>
@@ -626,6 +653,55 @@ button.btn.small { padding:7px 12px; font-size:11px; }
     </div>
   </section>
 
+  <!-- ═══════════ CARGA DE EQUIPO (ficha técnica desde campo) ═══════════ -->
+  <section class="view" id="view-carga">
+    <div id="cgLista">
+      <div class="card">
+        <div class="card-title">Carga de equipo</div>
+        <div class="card-note">Completá los datos de placa y la ficha técnica desde campo. Se guardan en Supabase (<code>equipos</code> + <code>equipos_specs</code>) y los módulos Pro los leen, igual que si los cargaras desde el escritorio.</div>
+        <div style="margin-top:12px;">
+          <input type="text" id="cgBuscar" placeholder="Buscar o crear por TAG / nombre…" autocomplete="off" autocapitalize="characters">
+        </div>
+        <label class="cg-check"><input type="checkbox" id="cgSoloSinFicha"> mostrar solo equipos sin ficha técnica</label>
+        <div id="cgResultados"></div>
+      </div>
+    </div>
+
+    <div id="cgForm" class="hidden">
+      <div class="cg-head">
+        <button type="button" class="btn small" id="cgVolver">‹ Equipos</button>
+        <span class="cg-tag" id="cgTag"></span>
+      </div>
+      <div class="card">
+        <div class="card-title">Datos generales</div>
+        <div class="field-grid2">
+          <div class="field-row"><label class="field-label">Nombre</label><input type="text" id="cgNombre"></div>
+          <div class="field-row"><label class="field-label">Tipo</label><input type="text" id="cgTipo" list="cgTiposList" placeholder="Motor, Bomba, Soplador…"></div>
+          <div class="field-row"><label class="field-label">Ubicación</label><input type="text" id="cgUbic"></div>
+          <div class="field-row"><label class="field-label">Criticidad</label><select id="cgCrit"><option value="">—</option><option>A</option><option>B</option><option>C</option></select></div>
+          <div class="field-row"><label class="field-label">Marca</label><input type="text" id="cgMarca"></div>
+          <div class="field-row"><label class="field-label">Modelo</label><input type="text" id="cgModelo"></div>
+        </div>
+        <div class="field-row" style="margin-top:10px;"><label class="field-label">N° de serie</label><input type="text" id="cgSerie"></div>
+        <div class="field-row"><label class="field-label">Notas</label><textarea id="cgNotas"></textarea></div>
+        <datalist id="cgTiposList"></datalist>
+      </div>
+
+      <div class="card">
+        <div class="card-title">Ficha técnica (datos de placa)</div>
+        <div class="card-note" style="margin-bottom:10px;">Elegí el tipo y completá solo lo que tengas. <span class="cg-req">★</span> = lo usan los módulos Pro.</div>
+        <div class="cg-chips" id="cgChips"></div>
+        <div id="cgSpecs"></div>
+        <div class="cg-aviso" id="cgAviso">⚠️ La tabla <code>equipos_specs</code> no existe todavía en Supabase: los datos generales se guardan, la ficha técnica no.</div>
+      </div>
+
+      <div class="cg-bar">
+        <button type="button" class="btn" id="cgCancelar">Cancelar</button>
+        <button type="button" class="btn primary" id="cgGuardar">Guardar en Supabase</button>
+      </div>
+    </div>
+  </section>
+
   <!-- ═══════════ EQUIPOS (catálogo compartido) ═══════════ -->
   <section class="view" id="view-equipos">
     <div class="card">
@@ -705,6 +781,7 @@ document.getElementById('tabNav').addEventListener('click', (e)=>{
   document.querySelectorAll('.tab-btn').forEach(b=>b.classList.toggle('active', b===btn));
   document.querySelectorAll('.view').forEach(v=>v.classList.remove('active'));
   document.getElementById('view-'+btn.dataset.tab).classList.add('active');
+  if(btn.dataset.tab === 'carga') cgCargarSpecs();
 });
 
 // ═══════════ IP preview (motores) — solo aritmética, no diagnóstico ═══════════
@@ -1180,6 +1257,553 @@ function limpiarFormulario(cual){
   }
 }
 
+// ═══════════ fichas técnicas (equipos_specs: una fila por equipo y tipo) ═══════════
+// Mismas definiciones que el hub de escritorio: lo que se carga acá lo leen los módulos Pro.
+const MOTOR_FIELDS = [
+  {key:'rpm',               label:'RPM Nominal',            type:'number'},
+  {key:'n_polos',           label:'N° Polos',               type:'number'},
+  {key:'frecuencia',        label:'Frecuencia (Hz)',        type:'number'},
+  {key:'potencia_kw',       label:'Potencia (kW)',          type:'number'},
+  {key:'voltaje_v',         label:'Voltaje Nominal (V)',    type:'number'},
+  {key:'corriente_a',       label:'Corriente FLA (A)',      type:'number'},
+  {key:'factor_potencia',   label:'Factor de Potencia',     type:'number'},
+  {key:'eficiencia',        label:'Eficiencia (%)',         type:'number'},
+  {key:'frame',             label:'Frame',                  type:'text'},
+  {key:'ip',                label:'Grado IP',               type:'text'},
+  {key:'clase_aislamiento', label:'Clase Aislamiento',      type:'text'},
+  {key:'tipo_conexion',     label:'Tipo Conexión',          type:'text'},
+  {key:'tipo_montaje',      label:'Tipo Montaje',           type:'text'},
+  {key:'rodamiento_la',     label:'Rodamiento LA',          type:'text'},
+  {key:'rodamiento_lo',     label:'Rodamiento LO',          type:'text'},
+  {key:'lubricacion',       label:'Lubricación',            type:'text'},
+  {key:'peso',              label:'Peso (kg)',              type:'number'},
+];
+const BOMBA_FIELDS = [
+  {key:'tipo',                    label:'Tipo de Bomba',           type:'text'},
+  {key:'rpm',                     label:'RPM Nominal',             type:'number'},
+  {key:'caudal_m3h',              label:'Caudal Nominal (m³/h)',   type:'number'},
+  {key:'altura_m',                label:'Altura Nominal (m)',      type:'number'},
+  {key:'npsh_m',                  label:'NPSH Requerido (m)',      type:'number'},
+  {key:'potencia_hidraulica_kw',  label:'Potencia Hidráulica (kW)',type:'number'},
+  {key:'diametro_impulsor_mm',    label:'Diámetro Impulsor (mm)',  type:'number'},
+  {key:'n_alabes',                label:'N° Álabes',               type:'number'},
+  {key:'tipo_sello',              label:'Tipo de Sello',           type:'text'},
+  {key:'succion_in',              label:'Succión (pulg)',          type:'number'},
+  {key:'descarga_in',             label:'Descarga (pulg)',         type:'number'},
+  {key:'fluido',                  label:'Fluido',                  type:'text'},
+  {key:'t_fluido_c',              label:'T° Fluido (°C)',          type:'number'},
+  {key:'material_carcasa',        label:'Material Carcasa',        type:'text'},
+];
+const VENTILADOR_FIELDS = [
+  {key:'tipo',                    label:'Tipo de Ventilador',        type:'text'},
+  {key:'rpm',                     label:'RPM Nominal',               type:'number'},
+  {key:'caudal_m3h',              label:'Caudal (m³/h)',             type:'number'},
+  {key:'presion_estatica_pa',     label:'Presión Estática (Pa)',     type:'number'},
+  {key:'diametro_rodete_mm',      label:'Diámetro Rodete (mm)',      type:'number'},
+  {key:'n_alabes',                label:'N° Álabes',                 type:'number'},
+  {key:'tipo_transmision',        label:'Tipo de Transmisión',       type:'text'},
+  {key:'potencia_motor_kw',       label:'Potencia Motor (kW)',       type:'number'},
+];
+const COMPRESOR_FIELDS = [
+  {key:'tipo',                    label:'Tipo de Compresor',         type:'text'},
+  {key:'rpm',                     label:'RPM Nominal',               type:'number'},
+  {key:'caudal_m3min',            label:'Caudal (m³/min)',           type:'number'},
+  {key:'presion_trabajo_bar',     label:'Presión Trabajo (bar)',     type:'number'},
+  {key:'presion_maxima_bar',      label:'Presión Máxima (bar)',      type:'number'},
+  {key:'potencia_kw',             label:'Potencia (kW)',             type:'number'},
+  {key:'tipo_refrigeracion',      label:'Refrigeración',             type:'text'},
+  {key:'tipo_aceite',             label:'Tipo de Aceite',            type:'text'},
+  {key:'capacidad_tanque_l',      label:'Capacidad Tanque (L)',      type:'number'},
+];
+const TABLERO_FIELDS = [
+  {key:'tipo',                    label:'Tipo de Tablero',           type:'text'},
+  {key:'voltaje_barras',          label:'Voltaje de Barras (V)',     type:'number'},
+  {key:'corriente_nominal_a',     label:'Corriente Nominal (A)',     type:'number'},
+  {key:'n_barras',                label:'N° Barras',                 type:'number'},
+  {key:'configuracion',           label:'Configuración',             type:'text'},
+  {key:'frecuencia',              label:'Frecuencia (Hz)',           type:'number'},
+  {key:'ip',                      label:'Grado IP',                  type:'text'},
+  {key:'sistema_tierra',          label:'Sistema Puesta a Tierra',   type:'text'},
+  {key:'fabricante_gabinete',     label:'Fabricante Gabinete',       type:'text'},
+  {key:'icc_ka',                  label:'Corriente Cortocircuito (kA)',type:'number'},
+  {key:'tipo_proteccion',         label:'Tipo Protección Principal', type:'text'},
+];
+const REFRIGERACION_FIELDS = [
+  {key:'tipo',                    label:'Tipo de Equipo',            type:'text'},
+  {key:'refrigerante',            label:'Refrigerante (R410A/R32)',  type:'text'},
+  {key:'capacidad_btu',           label:'Capacidad Frigorífica (BTU)',type:'number'},
+  {key:'potencia_kw',             label:'Potencia Eléctrica (kW)',   type:'number'},
+  {key:'voltaje_v',               label:'Voltaje (V)',               type:'number'},
+  {key:'tipo_compresor',          label:'Tipo Compresor',            type:'text'},
+  {key:'n_compresores',           label:'N° Compresores',            type:'number'},
+  {key:'carga_refrigerante_kg',   label:'Carga Refrigerante (kg)',   type:'number'},
+  {key:'seer_eer',                label:'SEER / EER',                type:'number'},
+  {key:'tipo_evaporador',         label:'Tipo Evaporador',           type:'text'},
+  {key:'tipo_condensador',        label:'Tipo Condensador',          type:'text'},
+];
+const GRUA_FIELDS = [
+  {key:'tipo',                    label:'Tipo de Grúa/Polipasto',    type:'text'},
+  {key:'capacidad_max_kg',        label:'Capacidad Máxima (kg)',     type:'number'},
+  {key:'altura_elevacion_m',      label:'Altura de Elevación (m)',   type:'number'},
+  {key:'velocidad_elevacion_mpm', label:'Velocidad Elevación (m/min)',type:'number'},
+  {key:'velocidad_traslacion_mpm',label:'Velocidad Traslación (m/min)',type:'number'},
+  {key:'ancho_luz_m',             label:'Ancho de Luz (m)',          type:'number'},
+  {key:'n_caidas_cable',          label:'N° Caídas de Cable',        type:'number'},
+  {key:'diametro_cable_mm',       label:'Diámetro Cable (mm)',       type:'number'},
+  {key:'tipo_freno',              label:'Tipo de Freno',             type:'text'},
+  {key:'potencia_kw',             label:'Potencia (kW)',             type:'number'},
+];
+
+const TANQUE_RECIPIENTE_FIELDS = [
+  {key:"tipo",                    label:"Tipo",                            type:"text"},
+  {key:"material",                label:"Material",                        type:"text"},
+  {key:"capacidad_m3",            label:"Capacidad (m³)",                  type:"number"},
+  {key:"presion_diseno_bar",      label:"Presión Diseño (bar)",            type:"number"},
+  {key:"presion_trabajo_bar",     label:"Presión Trabajo (bar)",           type:"number"},
+  {key:"temperatura_diseno_c",    label:"Temp. Diseño (°C)",               type:"number"},
+  {key:"temperatura_trabajo_c",   label:"Temp. Trabajo (°C)",              type:"number"},
+  {key:"diametro_mm",             label:"Diámetro (mm)",                   type:"number"},
+  {key:"altura_largo_mm",         label:"Altura / Largo (mm)",             type:"number"},
+  {key:"espesor_mm",              label:"Espesor (mm)",                    type:"number"},
+  {key:"orientacion",             label:"Orientación",                     type:"text"},
+  {key:"aislamiento",             label:"Aislamiento",                     type:"text"},
+  {key:"revestimiento",           label:"Revestimiento",                   type:"text"},
+  {key:"norma_diseno",            label:"Norma de Diseño",                 type:"text"},
+  {key:"fluido",                  label:"Fluido",                          type:"text"},
+  {key:"densidad_kg_m3",          label:"Densidad (kg/m³)",                type:"number"},
+];
+const INTERCAMBIADOR_FIELDS = [
+  {key:"tipo",                    label:"Tipo",                            type:"text"},
+  {key:"area_m2",                 label:"Área (m²)",                       type:"number"},
+  {key:"potencia_termica_kw",     label:"Potencia Térmica (kW)",           type:"number"},
+  {key:"fluido_caliente",         label:"Fluido Caliente",                 type:"text"},
+  {key:"fluido_frio",             label:"Fluido Frío",                     type:"text"},
+  {key:"t_entrada_caliente_c",    label:"T° Entrada Caliente (°C)",        type:"number"},
+  {key:"t_salida_caliente_c",     label:"T° Salida Caliente (°C)",         type:"number"},
+  {key:"t_entrada_frio_c",        label:"T° Entrada Frío (°C)",            type:"number"},
+  {key:"t_salida_frio_c",         label:"T° Salida Frío (°C)",             type:"number"},
+  {key:"presion_diseno_bar",      label:"Presión Diseño (bar)",            type:"number"},
+  {key:"material_placas_tubos",   label:"Material Placas / Tubos",         type:"text"},
+  {key:"material_carcasa",        label:"Material Carcasa",                type:"text"},
+  {key:"n_placas",                label:"N° Placas",                       type:"number"},
+  {key:"n_pasos",                 label:"N° Pasos",                        type:"number"},
+  {key:"conexion_in",             label:"Conexión Entrada",                type:"text"},
+  {key:"conexion_out",            label:"Conexión Salida",                 type:"text"},
+];
+const REACTOR_FIELDS = [
+  {key:"tipo",                    label:"Tipo",                            type:"text"},
+  {key:"volumen_m3",              label:"Volumen (m³)",                    type:"number"},
+  {key:"presion_diseno_bar",      label:"Presión Diseño (bar)",            type:"number"},
+  {key:"temperatura_diseno_c",    label:"Temp. Diseño (°C)",               type:"number"},
+  {key:"material",                label:"Material",                        type:"text"},
+  {key:"agitacion",               label:"Agitación (Si/No)",               type:"text"},
+  {key:"potencia_agitacion_kw",   label:"Potencia Agitación (kW)",         type:"number"},
+  {key:"rpm_agitacion",           label:"RPM Agitación",                   type:"number"},
+  {key:"tipo_agitador",           label:"Tipo Agitador",                   type:"text"},
+  {key:"camisa_serpentin",        label:"Camisa / Serpentín",              type:"text"},
+  {key:"fluido_calefactor",       label:"Fluido Calefactor",               type:"text"},
+  {key:"fluido_enfriador",        label:"Fluido Enfriador",                type:"text"},
+  {key:"catalizador",             label:"Catalizador",                     type:"text"},
+  {key:"norma_diseno",            label:"Norma de Diseño",                 type:"text"},
+];
+const TORRE_COLUMNA_FIELDS = [
+  {key:"tipo",                    label:"Tipo",                            type:"text"},
+  {key:"diametro_mm",             label:"Diámetro (mm)",                   type:"number"},
+  {key:"altura_mm",               label:"Altura (mm)",                     type:"number"},
+  {key:"material",                label:"Material",                        type:"text"},
+  {key:"presion_diseno_bar",      label:"Presión Diseño (bar)",            type:"number"},
+  {key:"temperatura_diseno_c",    label:"Temp. Diseño (°C)",               type:"number"},
+  {key:"tipo_relleno",            label:"Tipo de Relleno",                 type:"text"},
+  {key:"altura_relleno_mm",       label:"Altura Relleno (mm)",             type:"number"},
+  {key:"n_etapas",                label:"N° Etapas",                       type:"number"},
+  {key:"fluido_gas",              label:"Fluido Gas",                      type:"text"},
+  {key:"fluido_liquido",          label:"Fluido Líquido",                  type:"text"},
+  {key:"caudal_gas_m3h",          label:"Caudal Gas (m³/h)",               type:"number"},
+  {key:"caudal_liquido_m3h",      label:"Caudal Líquido (m³/h)",           type:"number"},
+  {key:"eficiencia",              label:"Eficiencia (%)",                  type:"number"},
+  {key:"conexiones",              label:"Conexiones",                      type:"text"},
+];
+const FILTRO_TAMIZ_FIELDS = [
+  {key:"tipo",                    label:"Tipo",                            type:"text"},
+  {key:"area_filtracion_m2",      label:"Área Filtración (m²)",            type:"number"},
+  {key:"caudal_m3h",              label:"Caudal (m³/h)",                   type:"number"},
+  {key:"presion_trabajo_bar",     label:"Presión Trabajo (bar)",           type:"number"},
+  {key:"dp_inicial_bar",          label:"ΔP Inicial (bar)",                type:"number"},
+  {key:"dp_final_bar",            label:"ΔP Final (bar)",                  type:"number"},
+  {key:"micraje_um",              label:"Micraje (µm)",                    type:"number"},
+  {key:"material_medio_filtrante", label:"Medio Filtrante",                 type:"text"},
+  {key:"n_elementos",             label:"N° Elementos",                    type:"number"},
+  {key:"material_carcasa",        label:"Material Carcasa",                type:"text"},
+  {key:"conexion_in",             label:"Conexión Entrada",                type:"text"},
+  {key:"conexion_out",            label:"Conexión Salida",                 type:"text"},
+  {key:"limpieza",                label:"Limpieza",                        type:"text"},
+  {key:"frecuencia_limpieza",     label:"Frecuencia Limpieza",             type:"text"},
+];
+const VALVULA_SELLO_FIELDS = [
+  {key:"tipo",                    label:"Tipo",                            type:"text"},
+  {key:"diametro_in",             label:"Diámetro (pulg)",                 type:"number"},
+  {key:"presion_set_bar",         label:"Presión de Set (bar)",            type:"number"},
+  {key:"presion_diseno_bar",      label:"Presión Diseño (bar)",            type:"number"},
+  {key:"material_cuerpo",         label:"Material Cuerpo",                 type:"text"},
+  {key:"material_sello",          label:"Material Sello",                  type:"text"},
+  {key:"conexion_in",             label:"Conexión Entrada",                type:"text"},
+  {key:"conexion_out",            label:"Conexión Salida",                 type:"text"},
+  {key:"fluido",                  label:"Fluido",                          type:"text"},
+  {key:"temperatura_c",           label:"Temperatura (°C)",                type:"number"},
+  {key:"norma_diseno",            label:"Norma de Diseño",                 type:"text"},
+  {key:"certificacion",           label:"Certificación",                   type:"text"},
+];
+const CALDERA_FIELDS = [
+  {key:"tipo",                    label:"Tipo",                            type:"text"},
+  {key:"capacidad_vapor_kgh",     label:"Capacidad Vapor (kg/h)",          type:"number"},
+  {key:"presion_diseno_bar",      label:"Presión Diseño (bar)",            type:"number"},
+  {key:"presion_trabajo_bar",     label:"Presión Trabajo (bar)",           type:"number"},
+  {key:"temperatura_vapor_c",     label:"Temp. Vapor (°C)",                type:"number"},
+  {key:"combustible",             label:"Combustible",                     type:"text"},
+  {key:"consumo_combustible",     label:"Consumo Combustible",             type:"text"},
+  {key:"eficiencia",              label:"Eficiencia (%)",                  type:"number"},
+  {key:"superficie_calefaccion_m2", label:"Superficie Calefacción (m²)",     type:"number"},
+  {key:"volumen_agua_m3",         label:"Volumen Agua (m³)",               type:"number"},
+  {key:"material",                label:"Material",                        type:"text"},
+  {key:"norma_diseno",            label:"Norma de Diseño",                 type:"text"},
+  {key:"certificacion",           label:"Certificación",                   type:"text"},
+  {key:"sistema_control",         label:"Sistema de Control",              type:"text"},
+];
+const AGITADOR_MEZCLADOR_FIELDS = [
+  {key:"tipo",                    label:"Tipo",                            type:"text"},
+  {key:"potencia_kw",             label:"Potencia (kW)",                   type:"number"},
+  {key:"rpm",                     label:"RPM Nominal",                     type:"number"},
+  {key:"relacion_reduccion",      label:"Relación Reducción",              type:"number"},
+  {key:"tipo_agitador",           label:"Tipo Agitador",                   type:"text"},
+  {key:"diametro_agitador_mm",    label:"Diámetro Agitador (mm)",          type:"number"},
+  {key:"material",                label:"Material",                        type:"text"},
+  {key:"sello",                   label:"Sello",                           type:"text"},
+  {key:"montaje",                 label:"Montaje",                         type:"text"},
+  {key:"lubricacion",             label:"Lubricación",                     type:"text"},
+  {key:"rodamientos",             label:"Rodamientos",                     type:"text"},
+];
+const EQUIPO_ELECTRICO_FIELDS = [
+  {key:"tipo",                    label:"Tipo",                            type:"text"},
+  {key:"potencia_kva",            label:"Potencia (kVA)",                  type:"number"},
+  {key:"voltaje_primario_v",      label:"Voltaje Primario (V)",            type:"number"},
+  {key:"voltaje_secundario_v",    label:"Voltaje Secundario (V)",          type:"number"},
+  {key:"corriente_a",             label:"Corriente (A)",                   type:"number"},
+  {key:"fases",                   label:"Fases",                           type:"number"},
+  {key:"frecuencia_hz",           label:"Frecuencia (Hz)",                 type:"number"},
+  {key:"conexion",                label:"Conexión",                        type:"text"},
+  {key:"refrigeracion",           label:"Refrigeración",                   type:"text"},
+  {key:"protecciones",            label:"Protecciones",                    type:"text"},
+  {key:"norma",                   label:"Norma",                           type:"text"},
+  {key:"certificacion",           label:"Certificación",                   type:"text"},
+  {key:"puesta_tierra",           label:"Puesta a Tierra",                 type:"text"},
+];
+const EQUIPO_MOVIL_FIELDS = [
+  {key:"tipo",                    label:"Tipo",                            type:"text"},
+  {key:"patente",                 label:"Patente",                         type:"text"},
+  {key:"capacidad_carga_kg",      label:"Capacidad Carga (kg)",            type:"number"},
+  {key:"motor",                   label:"Motor",                           type:"text"},
+  {key:"potencia_hp",             label:"Potencia (HP)",                   type:"number"},
+  {key:"combustible",             label:"Combustible",                     type:"text"},
+  {key:"horometro_h",             label:"Horómetro (h)",                   type:"number"},
+  {key:"kilometraje_km",          label:"Kilometraje (km)",                type:"number"},
+  {key:"certificaciones",         label:"Certificaciones",                 type:"text"},
+  {key:"vencimiento_revision",    label:"Vencimiento Revisión (AAAA-MM-DD)", type:"text"},
+];
+const SECADOR_PLANTA_FIELDS = [
+  {key:"tipo",                    label:"Tipo",                            type:"text"},
+  {key:"capacidad",               label:"Capacidad",                       type:"text"},
+  {key:"punto_rocio_c",           label:"Punto de Rocío (°C)",             type:"number"},
+  {key:"pureza",                  label:"Pureza (%)",                      type:"number"},
+  {key:"presion_trabajo_bar",     label:"Presión Trabajo (bar)",           type:"number"},
+  {key:"caudal_m3h",              label:"Caudal (m³/h)",                   type:"number"},
+  {key:"potencia_kw",             label:"Potencia (kW)",                   type:"number"},
+  {key:"refrigerante",            label:"Refrigerante",                    type:"text"},
+  {key:"consumibles",             label:"Consumibles",                     type:"text"},
+  {key:"norma",                   label:"Norma",                           type:"text"},
+];
+const INSTRUMENTO_FIELDS = [
+  {key:"tipo",                    label:"Tipo",                            type:"text"},
+  {key:"rango",                   label:"Rango",                           type:"text"},
+  {key:"unidad",                  label:"Unidad",                          type:"text"},
+  {key:"precision",               label:"Precisión",                       type:"text"},
+  {key:"senal_salida",            label:"Señal de Salida",                 type:"text"},
+  {key:"alimentacion",            label:"Alimentación",                    type:"text"},
+  {key:"conexion",                label:"Conexión",                        type:"text"},
+  {key:"material",                label:"Material",                        type:"text"},
+  {key:"certificacion",           label:"Certificación",                   type:"text"},
+];
+
+// Tipos ampliados: ids de tab/pane/grid/dot se derivan de la key, así agregar
+// un tipo es solo definir su *_FIELDS y una línea _tipoEspec(...) acá abajo.
+const _capKey = k => k.split('_').map(w => w.charAt(0).toUpperCase() + w.slice(1)).join('');
+const _tipoEspec = (key, label, fields) => ({key, label, fields,
+  tabId:'tabBtn'+_capKey(key), paneId:'pane'+_capKey(key), gridId:'grid'+_capKey(key), dotId:'dot'+_capKey(key)});
+
+const TIPOS_ESPEC = [
+  {key:'motor',         fields: MOTOR_FIELDS,         tabId:'tabBtnMotor',         paneId:'paneMotor',         gridId:'gridMotor',         dotId:'dotMotor',         label:'Motor'},
+  {key:'bomba',         fields: BOMBA_FIELDS,         tabId:'tabBtnBomba',         paneId:'paneBomba',         gridId:'gridBomba',         dotId:'dotBomba',         label:'Bomba'},
+  {key:'ventilador',    fields: VENTILADOR_FIELDS,    tabId:'tabBtnVentilador',    paneId:'paneVentilador',    gridId:'gridVentilador',    dotId:'dotVentilador',    label:'Ventilador'},
+  {key:'compresor',     fields: COMPRESOR_FIELDS,     tabId:'tabBtnCompresor',     paneId:'paneCompresor',     gridId:'gridCompresor',     dotId:'dotCompresor',     label:'Compresor'},
+  {key:'tablero',       fields: TABLERO_FIELDS,       tabId:'tabBtnTablero',       paneId:'paneTablero',       gridId:'gridTablero',       dotId:'dotTablero',       label:'Tablero'},
+  {key:'refrigeracion', fields: REFRIGERACION_FIELDS, tabId:'tabBtnRefrigeracion', paneId:'paneRefrigeracion', gridId:'gridRefrigeracion', dotId:'dotRefrigeracion', label:'Refrigeración'},
+  {key:'grua',          fields: GRUA_FIELDS,          tabId:'tabBtnGrua',          paneId:'paneGrua',          gridId:'gridGrua',          dotId:'dotGrua',          label:'Grúa'},
+  _tipoEspec("tanque_recipiente", "Tanque / Recipiente", TANQUE_RECIPIENTE_FIELDS),
+  _tipoEspec("intercambiador", "Intercambiador", INTERCAMBIADOR_FIELDS),
+  _tipoEspec("reactor", "Reactor", REACTOR_FIELDS),
+  _tipoEspec("torre_columna", "Torre / Columna", TORRE_COLUMNA_FIELDS),
+  _tipoEspec("filtro_tamiz", "Filtro / Tamiz", FILTRO_TAMIZ_FIELDS),
+  _tipoEspec("valvula_sello", "Válvula / Sello", VALVULA_SELLO_FIELDS),
+  _tipoEspec("caldera", "Caldera", CALDERA_FIELDS),
+  _tipoEspec("agitador_mezclador", "Agitador / Mezclador", AGITADOR_MEZCLADOR_FIELDS),
+  _tipoEspec("equipo_electrico", "Equipo eléctrico", EQUIPO_ELECTRICO_FIELDS),
+  _tipoEspec("equipo_movil", "Equipo móvil", EQUIPO_MOVIL_FIELDS),
+  _tipoEspec("secador_planta", "Secador / Planta", SECADOR_PLANTA_FIELDS),
+  _tipoEspec("instrumento", "Instrumento", INSTRUMENTO_FIELDS),
+];
+
+// ═══════════ Carga de equipo en campo ═══════════
+// Escribe en las mismas tablas que el modal del hub de escritorio (equipos + equipos_specs),
+// así los módulos Pro leen estos datos con SatSync.obtenerSpecsEquipo / listarEquiposConSpecs.
+let cgEquipoId = null, cgTipoActivo = null, cgSpecsOrig = {}, cgSpecsMap = {}, cgSpecsOk = false;
+const cgId = (t, k) => `cg_${t}_${k}`;
+const $cg = id => document.getElementById(id);
+const CG_REQ = { motor:['rpm','potencia_kw'], tablero:['voltaje_barras'], refrigeracion:['refrigerante'] };
+const CG_PISTAS = [
+  [/motor/, 'motor'], [/bomba/, 'bomba'], [/ventilador|soplador|extractor|blower/, 'ventilador'],
+  [/compresor/, 'compresor'], [/tablero|ccm|panel/, 'tablero'], [/refrig|climat|chiller|split/, 'refrigeracion'],
+  [/gr[uú]a|puente|polipasto|aparejo/, 'grua']
+];
+const CG_SIN_COLUMNAS = /column|42703|PGRST204/i;
+
+(function cgConstruirSpecs(){
+  $cg('cgChips').innerHTML = TIPOS_ESPEC.map(t => `<button type="button" class="cg-chip" data-t="${t.key}">${t.label}</button>`).join('');
+  $cg('cgSpecs').innerHTML = TIPOS_ESPEC.map(t => `
+    <div class="cg-pane" id="cgPane_${t.key}">
+      <div class="field-grid2">${t.fields.map(f => `
+        <div class="field-row"><label class="field-label">${esc(f.label)}${(CG_REQ[t.key] || []).includes(f.key) ? ' <span class="cg-req">★</span>' : ''}</label>
+        <input type="text" id="${cgId(t.key, f.key)}" inputmode="${f.type === 'number' ? 'decimal' : 'text'}" autocomplete="off"></div>`).join('')}
+      </div>
+    </div>`).join('');
+})();
+
+function cgSugerido(eq){
+  const t = ((eq.tipo || '') + ' ' + (eq.nombre || '')).toLowerCase();
+  const p = CG_PISTAS.find(([re]) => re.test(t));
+  return p ? p[1] : null;
+}
+
+function cgActivarTipo(key){
+  cgTipoActivo = key;
+  TIPOS_ESPEC.forEach(t => $cg('cgPane_' + t.key).classList.toggle('show', t.key === key));
+  document.querySelectorAll('#cgChips .cg-chip').forEach(c => c.classList.toggle('active', c.dataset.t === key));
+}
+
+function cgRecolectar(t){
+  const data = {}, malos = [];
+  t.fields.forEach(f => {
+    const v = ($cg(cgId(t.key, f.key)).value || '').trim();
+    if (!v) return;
+    if (f.type === 'number'){
+      const n = Number(v.replace(',', '.'));
+      if (Number.isFinite(n)) data[f.key] = n; else malos.push(f.label);
+    } else data[f.key] = v;
+  });
+  return { data, malos };
+}
+
+function cgMarcarChips(){
+  document.querySelectorAll('#cgChips .cg-chip').forEach(c => {
+    const t = TIPOS_ESPEC.find(x => x.key === c.dataset.t);
+    c.classList.toggle('has', t.fields.some(f => ($cg(cgId(t.key, f.key)).value || '').trim() !== ''));
+  });
+}
+
+function cgRender(){
+  const box = $cg('cgResultados');
+  if (!box) return;
+  if (typeof SatSync === 'undefined' || !SatSync.estaConfigurado()){
+    box.innerHTML = '<div class="empty-state"><div class="icon">📡</div><div class="msg">Sin conexión a Supabase: no se pueden cargar equipos.</div></div>';
+    return;
+  }
+  const bruto = $cg('cgBuscar').value.trim(), q = bruto.toLowerCase();
+  const soloSin = $cg('cgSoloSinFicha').checked;
+  const fichas = e => Object.keys(cgSpecsMap[e.tag] || {}).length;
+  const lista = equiposCache
+    .filter(e => e.activo !== false)
+    .filter(e => !q || e.tag.toLowerCase().includes(q) || (e.nombre || '').toLowerCase().includes(q))
+    .filter(e => !soloSin || !cgSpecsOk || !fichas(e));
+  const hayExacto = q && equiposCache.some(e => e.tag.toLowerCase() === q);
+  box.innerHTML =
+    (bruto && !hayExacto ? `<button type="button" class="cg-nuevo" data-nuevo="1">＋ Crear equipo nuevo «${esc(bruto)}»</button>` : '') +
+    lista.slice(0, 40).map(e => {
+      const n = fichas(e);
+      const badge = cgSpecsOk ? `<span class="cg-badge ${n ? 'ok' : 'sin'}">${n ? 'CON FICHA' : 'SIN FICHA'}</span>` : '';
+      return `<button type="button" class="cg-item" data-id="${esc(e.id)}">
+        <span class="cg-tag">${esc(e.tag)}</span>${badge}
+        <span class="cg-sub">${esc([e.nombre, e.tipo, e.ubicacion].filter(Boolean).join(' · ') || '—')}</span></button>`;
+    }).join('') +
+    (lista.length > 40 ? `<div class="card-note" style="margin-top:10px;">…y ${lista.length - 40} más: afiná la búsqueda.</div>` : '') +
+    (!lista.length && !bruto ? '<div class="empty-state"><div class="icon">📋</div><div class="msg">No hay equipos para mostrar.</div></div>' : '');
+}
+
+async function cgCargarSpecs(){
+  if (typeof SatSync === 'undefined' || !SatSync.estaConfigurado()){ cgRender(); return; }
+  try{
+    const filas = await SatSync.listarEquiposConSpecs();
+    cgSpecsMap = {};
+    filas.forEach(f => { cgSpecsMap[f.tag] = f.specs || {}; });
+    cgSpecsOk = true;
+  }catch(e){
+    cgSpecsOk = false;
+    console.warn('[HubCampo] carga: no se pudo leer equipos_full (se oculta el estado de ficha)', e);
+  }
+  cgRender();
+}
+
+async function cgAbrir(id, eqRespaldo){
+  const eq = equiposCache.find(e => e.id === id) || eqRespaldo;
+  if (!eq) return;
+  cgEquipoId = id;
+  $cg('cgTag').textContent = eq.tag;
+  $cg('cgNombre').value = eq.nombre || '';
+  $cg('cgTipo').value = eq.tipo || '';
+  $cg('cgUbic').value = eq.ubicacion || '';
+  $cg('cgCrit').value = eq.criticidad || '';
+  $cg('cgMarca').value = eq.marca || '';
+  $cg('cgModelo').value = eq.modelo || '';
+  $cg('cgSerie').value = eq.serie || '';
+  $cg('cgNotas').value = eq.notas || '';
+  const tipos = [...new Set([...equiposCache.map(e => e.tipo).filter(Boolean), ...TIPOS_ESPEC.map(t => t.label)])];
+  $cg('cgTiposList').innerHTML = tipos.map(t => `<option value="${esc(t)}">`).join('');
+  TIPOS_ESPEC.forEach(t => t.fields.forEach(f => { $cg(cgId(t.key, f.key)).value = ''; }));
+  $cg('cgAviso').classList.remove('show');
+  $cg('cgLista').classList.add('hidden');
+  $cg('cgForm').classList.remove('hidden');
+  window.scrollTo({ top: 0 });
+
+  cgSpecsOrig = {};
+  try{
+    cgSpecsOrig = await SatSync.obtenerSpecsEquipo(id);
+    TIPOS_ESPEC.forEach(t => {
+      const d = cgSpecsOrig[t.key] || {};
+      t.fields.forEach(f => { if (d[f.key] !== undefined && d[f.key] !== null) $cg(cgId(t.key, f.key)).value = d[f.key]; });
+    });
+  }catch(e){
+    if (e.code === '42P01' || /equipos_specs/.test(e.message || '')) $cg('cgAviso').classList.add('show');
+    else toast('No se pudo leer la ficha técnica: ' + e.message, 'error');
+  }
+  cgMarcarChips();
+  const conDatos = TIPOS_ESPEC.find(t => cgSpecsOrig[t.key] && Object.keys(cgSpecsOrig[t.key]).length);
+  cgActivarTipo((conDatos && conDatos.key) || cgSugerido(eq) || null);
+}
+
+function cgVolver(){
+  cgEquipoId = null;
+  $cg('cgForm').classList.add('hidden');
+  $cg('cgLista').classList.remove('hidden');
+  cgRender();
+  window.scrollTo({ top: 0 });
+}
+
+async function cgCrear(tag){
+  tag = tag.trim();
+  if (!tag) return;
+  try{
+    const eq = await SatSync.buscarOCrearEquipo(tag, {});
+    await cargarEquipos();
+    toast(`Equipo ${eq.tag} creado.`, 'success');
+    cgAbrir(eq.id, eq);
+  }catch(e){
+    toast('No se pudo crear el equipo: ' + e.message, 'error');
+  }
+}
+
+async function cgGuardar(){
+  if (!cgEquipoId) return;
+  const porTipo = {}, errores = [];
+  for (const t of TIPOS_ESPEC){
+    const r = cgRecolectar(t);
+    porTipo[t.key] = r.data;
+    if (r.malos.length) errores.push(`${t.label}: ${r.malos.join(', ')}`);
+  }
+  if (errores.length){ toast('Estos campos tienen que ser números → ' + errores.join(' · '), 'error'); return; }
+
+  const eq = equiposCache.find(e => e.id === cgEquipoId);
+  const v = id => $cg(id).value.trim() || null;
+  const g = { nombre: v('cgNombre') || (eq && eq.tag), tipo: v('cgTipo'), ubicacion: v('cgUbic'),
+              criticidad: v('cgCrit'), marca: v('cgMarca'), modelo: v('cgModelo'), serie: v('cgSerie'), notas: v('cgNotas') };
+  const btn = $cg('cgGuardar');
+  btn.disabled = true; btn.textContent = 'Guardando…';
+  try{
+    let avisos = '';
+    try{
+      await SatSync.actualizarEquipo(cgEquipoId, g);
+    }catch(e){
+      if (!CG_SIN_COLUMNAS.test((e.code || '') + ' ' + (e.message || ''))) throw e;
+      await SatSync.actualizarEquipo(cgEquipoId, { nombre: g.nombre, tipo: g.tipo, ubicacion: g.ubicacion });
+      avisos += 'Criticidad/marca/modelo/serie/notas no se guardaron: falta correr schema-core.sql en Supabase. ';
+    }
+    for (const t of TIPOS_ESPEC){
+      const d = porTipo[t.key];
+      const tenia = cgSpecsOrig[t.key] && Object.keys(cgSpecsOrig[t.key]).length;
+      try{
+        if (Object.keys(d).length){ await SatSync.guardarSpec(cgEquipoId, t.key, d); cgSpecsOrig[t.key] = d; }
+        else if (tenia){ await SatSync.borrarSpec(cgEquipoId, t.key); delete cgSpecsOrig[t.key]; }
+      }catch(e){
+        avisos += `Ficha de ${t.label.toLowerCase()}: ${e.message}. `;
+      }
+    }
+    if (eq) cgSpecsMap[eq.tag] = { ...cgSpecsOrig };
+    await cargarEquipos();
+    toast(avisos ? 'Guardado con avisos. ' + avisos : 'Guardado en Supabase ✓', avisos ? 'warn' : 'success');
+    if (!avisos) cgVolver();
+  }catch(e){
+    toast('No se pudo guardar (¿sin señal?): ' + e.message + ' — lo que cargaste sigue en pantalla, reintentá.', 'error');
+  }finally{
+    btn.disabled = false; btn.textContent = 'Guardar en Supabase';
+  }
+}
+
+$cg('cgBuscar').addEventListener('input', cgRender);
+$cg('cgSoloSinFicha').addEventListener('change', cgRender);
+$cg('cgResultados').addEventListener('click', ev => {
+  const b = ev.target.closest('button');
+  if (!b) return;
+  if (b.dataset.nuevo) cgCrear($cg('cgBuscar').value);
+  else if (b.dataset.id) cgAbrir(b.dataset.id);
+});
+$cg('cgChips').addEventListener('click', ev => { const c = ev.target.closest('.cg-chip'); if (c) cgActivarTipo(c.dataset.t); });
+$cg('cgSpecs').addEventListener('input', cgMarcarChips);
+$cg('cgVolver').onclick = cgVolver;
+$cg('cgCancelar').onclick = cgVolver;
+$cg('cgGuardar').onclick = cgGuardar;
+
+// ═══════════ Motores: traer los datos de placa desde la ficha cargada ═══════════
+// Al elegir/escribir un TAG en la pestaña Motores, si el equipo tiene ficha de motor
+// en Supabase se completan tensión, potencia, corriente y RPM — solo los campos vacíos,
+// nunca se pisa lo que el técnico ya tipeó.
+async function motorTraerFicha(){
+  const tag = txt('mo_tag');
+  if (!tag || typeof SatSync === 'undefined' || !SatSync.estaConfigurado()) return;
+  const eq = equiposCache.find(e => e.tag === tag);
+  if (!eq) return;
+  let specs;
+  try{ specs = await SatSync.obtenerSpecsEquipo(eq.id); }catch(e){ return; }
+  const m = specs && specs.motor;
+  if (!m) return;
+  const mapa = [['mo_vNom','voltaje_v'], ['mo_kw','potencia_kw'], ['mo_iNom','corriente_a'], ['mo_rpm','rpm']];
+  let n = 0;
+  mapa.forEach(([id, key]) => {
+    const el = document.getElementById(id);
+    if (el && !el.value && m[key] !== undefined && m[key] !== null){ el.value = m[key]; n++; }
+  });
+  if (n){
+    if (typeof suggestVEnsayoHub === 'function') suggestVEnsayoHub();
+    toast(`📋 Datos de placa de ${tag} cargados desde la ficha (${n}).`, 'success');
+  }
+}
+document.getElementById('mo_tag').addEventListener('change', motorTraerFicha);
+
 // ═══════════ init ═══════════
 function actualizarEstadoConexion(){
   const on = typeof SatSync !== 'undefined' && SatSync.estaConfigurado();
@@ -1205,6 +1829,7 @@ async function cargarEquipos(){
     console.warn('[HubCampo] no se pudo leer equipos', err);
   }
   renderListaEquipos();
+  if(typeof cgRender === 'function' && document.getElementById('cgForm').classList.contains('hidden')) cgRender();
 }
 
 // ═══════════ Importación masiva de equipos (Excel) — migración inicial ═══════════
@@ -1327,7 +1952,7 @@ toggleCompresorCampos();
 actualizarSelloHub();
 renderPendientes();
 actualizarEstadoConexion();
-if(typeof SatSync !== 'undefined' && SatSync.init()){ cargarEquipos(); }
+if(typeof SatSync !== 'undefined' && SatSync.init()){ cargarEquipos().then(cgCargarSpecs); }
 if(navigator.onLine) reintentarEnvios();
 window.addEventListener('online', async ()=>{
   const yaConectado = typeof SatSync !== 'undefined' && SatSync.estaConfigurado();
@@ -1340,6 +1965,8 @@ window.addEventListener('online', async ()=>{
   reintentarEnvios();
 });
 window.addEventListener('offline', actualizarEstadoConexion);
+// enlace directo a la carga de campo: .../index.html#carga
+if(location.hash === '#carga') document.querySelector('.tab-btn[data-tab="carga"]').click();
 </script>
 </body>
 </html>
