@@ -351,14 +351,15 @@ button.btn.small { padding:7px 12px; font-size:11px; }
       <div class="card-title">Medición</div>
       <div class="field-grid2">
         <div class="field-row"><label class="field-label">Fecha</label><input type="date" id="ta_fecha"></div>
-        <div class="field-row"><label class="field-label">Fase con temp. máxima</label>
-          <select id="ta_faseMax"><option value="">—</option><option value="R">R</option><option value="S">S</option><option value="T">T</option><option value="N">N</option></select>
-        </div>
-      </div>
-      <div class="field-grid2">
         <div class="field-row"><label class="field-label">Temp. ambiente (°C)</label><input type="number" step="0.1" id="ta_tempAmb"></div>
-        <div class="field-row"><label class="field-label">Temp. máxima medida (°C)</label><input type="number" step="0.1" id="ta_tempMax"></div>
       </div>
+      <div class="section-label">Temperatura por fase (°C) — mismo punto en R, S y T</div>
+      <div class="field-grid3">
+        <div class="field-row"><label class="field-label">Temp. R</label><input type="number" step="0.1" id="ta_tempR"></div>
+        <div class="field-row"><label class="field-label">Temp. S</label><input type="number" step="0.1" id="ta_tempS"></div>
+        <div class="field-row"><label class="field-label">Temp. T</label><input type="number" step="0.1" id="ta_tempT"></div>
+      </div>
+      <div class="field-row"><label class="field-label">Punto caliente fuera de fases (°C) — opcional (neutro, barra, bobina)</label><input type="number" step="0.1" id="ta_tempOtro"></div>
 
       <div class="section-label">Corrientes</div>
       <div class="field-grid3">
@@ -1018,7 +1019,7 @@ function guardarAlineacion(){
 function guardarTablero(){
   const tag = txt('ta_tag');
   const okRango = validarRangos([
-    ['ta_tempAmb', -10, 60, 'Temp. ambiente', '°C'], ['ta_tempMax', -10, 200, 'Temp. máxima medida', '°C'],
+    ['ta_tempAmb', -10, 60, 'Temp. ambiente', '°C'], ['ta_tempR', -10, 200, 'Temp. fase R', '°C'], ['ta_tempS', -10, 200, 'Temp. fase S', '°C'], ['ta_tempT', -10, 200, 'Temp. fase T', '°C'], ['ta_tempOtro', -10, 200, 'Temp. otro punto', '°C'],
     ['ta_iR', 0.01, 5000, 'I R', 'A'], ['ta_iS', 0.01, 5000, 'I S', 'A'], ['ta_iT', 0.01, 5000, 'I T', 'A'],
     ['ta_vRS', 0, 30000, 'V R-S', 'V'], ['ta_vST', 0, 30000, 'V S-T', 'V'], ['ta_vTR', 0, 30000, 'V R-T', 'V'],
     ['ta_vRN', 0, 30000, 'V R-N', 'V'], ['ta_vSN', 0, 30000, 'V S-N', 'V'], ['ta_vTN', 0, 30000, 'V T-N', 'V'],
@@ -1039,10 +1040,19 @@ function guardarTablero(){
     }
   }
 
+  const tempR = numOrUndef('ta_tempR'), tempS = numOrUndef('ta_tempS'), tempT = numOrUndef('ta_tempT'), tempOtro = numOrUndef('ta_tempOtro');
+  const tMaxDer = (()=>{
+    const c = [['R',tempR],['S',tempS],['T',tempT],['Otro',tempOtro]].filter(([,v]) => v!==undefined && !isNaN(v));
+    if (!c.length) return {temp:undefined, fase:''};
+    const m = c.reduce((x,y) => y[1] > x[1] ? y : x);
+    return {temp:m[1], fase:m[0]};
+  })();
   const datos = {
     fecha: document.getElementById('ta_fecha').value || hoy(),
-    faseMax: document.getElementById('ta_faseMax').value,
-    tempAmb: numOrUndef('ta_tempAmb'), tempMax: numOrUndef('ta_tempMax'),
+    // La temperatura máxima y su fase se derivan de las temperaturas por fase (compatibilidad con capturas viejas).
+    faseMax: tMaxDer.fase, tempMax: tMaxDer.temp,
+    tempAmb: numOrUndef('ta_tempAmb'),
+    tempR, tempS, tempT, tempOtro,
     iR: numOrUndef('ta_iR'), iS: numOrUndef('ta_iS'), iT: numOrUndef('ta_iT'),
     vRS, vST, vTR, vRN, vSN, vTN,
     fp: numOrUndef('ta_fp'), thdV: numOrUndef('ta_thdV'), rAisl: numOrUndef('ta_rAisl'),
